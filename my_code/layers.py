@@ -66,6 +66,15 @@ class basis_preparation(layer):
         
         qml.BasisState(input, wires=self.qubits)
 
+class angle_preparation(layer):
+    statepreparation_layer = True
+
+    def gates(self, input):
+        if len(input) != len(self.qubits):
+            raise Exception('angle_preparation layer: Invalid input size. Data must have the correct input size. In this case, qubits="{}", which means that len(input) should be {}.'.format(self._qubits, len(self.qubits)))
+        
+        qml.AngleEmbedding(input, wires=self.qubits)
+
 # fixed layer classes
 class CNOTs_layer(layer):
 

@@ -1,4 +1,5 @@
 import pennylane as qml
+import numpy
 from pennylane import numpy as np
 import matplotlib.pyplot as plt
 from IPython.display import clear_output
@@ -15,7 +16,8 @@ class score_predictor:
             device = "default.qubit",
             optimizer = qml.NesterovMomentumOptimizer(0.5),
             batch_size = 5,
-            bias = True
+            bias = True,
+            output_to_prediction = lambda x: x,
         ):
 
         # number of qubits and device
@@ -44,9 +46,13 @@ class score_predictor:
         if bias: self.params.append(np.array(0.0, requires_grad=True))
         self.bias = bias
 
+        # output to prediction function
+        self.output_to_prediction = output_to_prediction
+
         # training records    
         self.costs = []
         self.accuracies = []
+        self.last_cost = None
 
     def variational_classifier(self, input, params, draw=False, draw_options={}):
 
@@ -96,8 +102,14 @@ class score_predictor:
         return loss
     
     def cost(self, X, Y, *params):
-        predictions = [self.variational_classifier(x, params) for x in X]
-        return self.square_loss(Y, predictions)
+        output = [self.variational_classifier(x, params) for x in X]
+        cost = self.square_loss(Y, output)
+        self.last_cost = { #TODO history of costs and parameters
+            'X': X,
+            'Y': Y,
+            'output': output
+        }
+        return cost
     
     def train(self, iterations, plot=True):
         for it in range(iterations):
@@ -109,17 +121,18 @@ class score_predictor:
             batch_index = np.random.randint(0, len(self.data_X), (self.batch_size,))
             X_batch = self.data_X[batch_index]
             Y_batch = self.data_Y[batch_index]
-            self.params = self.opt.step(self.cost, X_batch, Y_batch, *self.params)[2:]
+            params, cost = self.opt.step_and_cost(self.cost, X_batch, Y_batch, *self.params)
 
-            # Compute accuracy
-            predictions = [np.sign(self.variational_classifier(x, self.params)) for x in self.data_X]
-            acc = self.accuracy(self.data_Y, predictions)
-            self.accuracies.append(acc)
-
-            # Compute cost and append
-            cost = self.cost(self.data_X, self.data_Y, *self.params)
+            # Update parameters and append cost
+            self.params = params[2:]
             self.costs.append(cost)
 
+            # Compute accuracy
+            predictions = [self.output_to_prediction(x) for x in self.last_cost['output']]
+            acc = self.accuracy(Y_batch, predictions)
+            self.accuracies.append(acc)
+
+            # Print progress (cost and accuracy for this batch)
             print("Iter: {:5d} | Cost: {:0.7f} | Accuracy: {:0.7f} ".format(it + 1, cost, acc))
 
             if plot: self.plot()
