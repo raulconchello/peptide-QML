@@ -4,20 +4,25 @@ from pennylane import numpy as np
 import matplotlib.pyplot as plt
 from IPython.display import clear_output
 
-
+def get_value(x):
+    try:
+        return x._value
+    except:
+        return x
 
 class score_predictor:
 
     def __init__(   
             self, 
             n_qubits,
-            data, 
             circuit_layers,
+            data, 
+            data_validation = None,
             device = "default.qubit",
             optimizer = qml.NesterovMomentumOptimizer(0.5),
             batch_size = 5,
             bias = True,
-            output_to_prediction = lambda x: x,
+            output_to_prediction = get_value
         ):
 
         # number of qubits and device
@@ -27,6 +32,8 @@ class score_predictor:
         # data
         self.data_X = data[0]
         self.data_Y = data[1]
+        self.data_validation_X = data_validation[0] if data_validation is not None else None
+        self.data_validation_Y = data_validation[1] if data_validation is not None else None
 
         # circuit_layers
         self.circuit_layers = circuit_layers
@@ -51,7 +58,8 @@ class score_predictor:
 
         # training records    
         self.costs = []
-        self.accuracies = []
+        self.accuracies_batch = []
+        self.accuracies_validation = []
         self.last_cost = None
 
     def variational_classifier(self, input, params, draw=False, draw_options={}):
@@ -86,24 +94,20 @@ class score_predictor:
         draw_options = {}
         self.variational_classifier(self.data_X[0], self.params, draw=True, draw_options=draw_options)
     
-    def square_loss(self, labels, predictions):
+    def loss(self, labels, predictions): # squared loss
         loss = 0
         for l, p in zip(labels, predictions):
             loss = loss + (l - p) ** 2
         loss = loss / len(labels)
         return loss
     
-    def accuracy(self, labels, predictions):
-        loss = 0
-        for l, p in zip(labels, predictions):
-            if abs(l - p) < 1e-5:
-                loss = loss + 1
-        loss = loss / len(labels)
-        return loss
+    def accuracy(self, objectives, predictions):
+        loss = self.loss(objectives, predictions)
+        return 1 - loss
     
     def cost(self, X, Y, *params):
         output = [self.variational_classifier(x, params) for x in X]
-        cost = self.square_loss(Y, output)
+        cost = self.loss(Y, output)
         self.last_cost = { #TODO history of costs and parameters
             'X': X,
             'Y': Y,
@@ -111,7 +115,7 @@ class score_predictor:
         }
         return cost
     
-    def train(self, iterations, plot=True):
+    def train(self, iterations, plot=True, plot_options={}):
         for it in range(iterations):
 
             # Clear previous iteration outputs
@@ -127,18 +131,28 @@ class score_predictor:
             self.params = params[2:]
             self.costs.append(cost)
 
-            # Compute accuracy
+            # Compute accuracy batch
             predictions = [self.output_to_prediction(x) for x in self.last_cost['output']]
             acc = self.accuracy(Y_batch, predictions)
-            self.accuracies.append(acc)
+            self.accuracies_batch.append(acc)
 
-            # Print progress (cost and accuracy for this batch)
-            print("Iter: {:5d} | Cost: {:0.7f} | Accuracy: {:0.7f} ".format(it + 1, cost, acc))
+            if self.data_validation_X is not None:
+                # Compute accuracy validation
+                predictions = [self.output_to_prediction(self.variational_classifier(x, self.params)) for x in self.data_validation_X]
+                acc_val = self.accuracy(self.data_validation_Y, predictions)
+                self.accuracies_validation.append(acc_val)
 
-            if plot: self.plot()
+                # Print progress (cost, accuracy batch and accuracy validation for this batch)
+                print("Iter: {:5d} | Cost: {:0.7f} | Accuracy: {:0.7f} | Accuracy validation: {:0.7f}".format(it + 1, cost, acc, acc_val))
+
+            else:
+                # Print progress (cost and accuracy for this batch)
+                print("Iter: {:5d} | Cost: {:0.7f} | Accuracy: {:0.7f} ".format(it + 1, cost, acc))
+
+            if plot: self.plot(**plot_options)
 
 
-    def plot(self):
+    def plot(self, cost=True, accuracy=True, accuracy_validation=True):
 
         # Create a new figure
         fig, ax1 = plt.subplots()
@@ -146,16 +160,22 @@ class score_predictor:
         # Create a second y-axis that shares the same x-axis
         ax2 = ax1.twinx()
 
-        # Plot cost on the first y-axis
-        ax1.plot(self.costs, 'g-')
-        ax1.set_xlabel('Iteration')
-        ax1.set_ylabel('Cost', color='g')
-        ax1.tick_params('y', colors='g')
+        if cost:
+            # Plot cost on the first y-axis
+            ax1.plot(self.costs, 'g-')
+            ax1.set_xlabel('Iteration')
+            ax1.set_ylabel('Cost', color='g')
+            ax1.tick_params('y', colors='g')
 
-        # Plot accuracy on the second y-axis
-        ax2.plot(self.accuracies, 'b-')
-        ax2.set_ylabel('Accuracy', color='b')
-        ax2.tick_params('y', colors='b')
+        if accuracy:
+            # Plot accuracy on the second y-axis
+            ax2.plot(self.accuracies_batch, 'b-')
+            ax2.set_ylabel('Accuracy', color='b')
+            ax2.tick_params('y', colors='b')
+
+        if self.data_validation_X is not None and accuracy_validation:
+            # Plot accuracy (validation) on the second y-axis
+            ax2.plot(self.accuracies_validation, 'r-')
 
         plt.title('Cost and Accuracy Over Iterations')
         plt.grid(True)

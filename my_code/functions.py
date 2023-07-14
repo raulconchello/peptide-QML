@@ -42,4 +42,8 @@ def create_validating_set(X, Y, percentage=0.1):
     X_training = np.delete(X, indexes, axis=0)
     Y_training = np.delete(Y, indexes, axis=0)
 
+    # none of the arryay requires gradient
+    for i in [X_training, Y_training, X_validating, Y_validating]: 
+        i.requires_grad = False
+
     return X_training, Y_training, X_validating, Y_validating
