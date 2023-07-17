@@ -10,14 +10,12 @@ def get_value(x):
     except:
         return x
 
-class score_predictor:
+class model:
 
     def __init__(   
             self, 
             n_qubits,
             circuit_layers,
-            data, 
-            data_validation = None,
             device = "default.qubit",
             optimizer = qml.NesterovMomentumOptimizer(0.5),
             batch_size = 5,
@@ -28,12 +26,6 @@ class score_predictor:
         # number of qubits and device
         self.n_qubits = n_qubits
         self.dev = qml.device(device, wires=n_qubits)
-
-        # data
-        self.data_X = data[0]
-        self.data_Y = data[1]
-        self.data_validation_X = data_validation[0] if data_validation is not None else None
-        self.data_validation_Y = data_validation[1] if data_validation is not None else None
 
         # circuit_layers
         self.circuit_layers = circuit_layers
@@ -47,20 +39,38 @@ class score_predictor:
         self.opt = optimizer
         self.batch_size = batch_size
 
-        # parameters and bias
-        shape_params = [layer.shape_params for layer in self.circuit_layers if layer.shape_params is not None]
-        self.params = [np.random.randn(*shape, requires_grad=True) for shape in shape_params] 
-        if bias: self.params.append(np.array(0.0, requires_grad=True))
+        # parameters and bias, and training records
         self.bias = bias
+        self.initialize_params()
+        self.last_cost = None
 
         # output to prediction function
         self.output_to_prediction = output_to_prediction
 
-        # training records    
+    def set_data(self, data_X, data_Y, data_X_validation=None, data_Y_validation=None):
+
+        # none of the data requires gradient
+        for i in [data_X, data_Y, data_X_validation, data_Y_validation]: 
+            if i is not None:
+                i.requires_grad = False
+
+        # data
+        self.data_X = data_X
+        self.data_Y = data_Y
+        self.data_validation_X = data_X_validation
+        self.data_validation_Y = data_Y_validation
+
+    def initialize_params(self):
+
+        # parameters and bias
+        shape_params = [layer.shape_params for layer in self.circuit_layers if layer.shape_params is not None]
+        self.params = [np.random.randn(*shape, requires_grad=True) for shape in shape_params] 
+        if self.bias: self.params.append(np.array(0.0, requires_grad=True))
+
+        # training records
         self.costs = []
         self.accuracies_batch = []
         self.accuracies_validation = []
-        self.last_cost = None
 
     def variational_classifier(self, input, params, draw=False, draw_options={}):
 
@@ -84,15 +94,17 @@ class score_predictor:
         
         if draw:
             qml.drawer.use_style("black_white")
-            fig, ax = qml.draw_mpl(circuit, expansion_strategy="device")(self.data_X[0], self.params)
-            fig.set_size_inches((6, 3))
+            fig, ax = qml.draw_mpl(circuit, expansion_strategy="device")(input, self.params)
+            fig.set_size_inches(draw_options['size'])
 
         bias = params[-1]  if self.bias else 0
-        return circuit(input, params) + bias
+        
+        output = circuit(input, params) + bias
+        return output
     
-    def draw_circuit(self):
-        draw_options = {}
-        self.variational_classifier(self.data_X[0], self.params, draw=True, draw_options=draw_options)
+    def draw_circuit(self, size=(6, 3)):
+        draw_options = {'size': size}
+        self.variational_classifier(self.circuit_layers[0].mock_input, self.params, draw=True, draw_options=draw_options)
     
     def loss(self, labels, predictions): # squared loss
         loss = 0
@@ -115,19 +127,23 @@ class score_predictor:
         }
         return cost
     
-    def train(self, iterations, plot=True, plot_options={}):
+    def train(self, iterations, initialize_params=False, plot=True, plot_options={}):
+
+        if getattr(self, 'data_X', None) is None or getattr(self, 'data_Y', None) is None:
+            raise Exception('Data not set. Use set_data() method.')
+
+        if initialize_params: 
+            self.initialize_params()
+
         for it in range(iterations):
 
-            # Clear previous iteration outputs
-            clear_output(wait=True)
-
-            # Update the weights by one optimizer step
+            # Get batch            
             batch_index = np.random.randint(0, len(self.data_X), (self.batch_size,))
             X_batch = self.data_X[batch_index]
             Y_batch = self.data_Y[batch_index]
-            params, cost = self.opt.step_and_cost(self.cost, X_batch, Y_batch, *self.params)
 
             # Update parameters and append cost
+            params, cost = self.opt.step_and_cost(self.cost, X_batch, Y_batch, *self.params)
             self.params = params[2:]
             self.costs.append(cost)
 
@@ -136,6 +152,10 @@ class score_predictor:
             acc = self.accuracy(Y_batch, predictions)
             self.accuracies_batch.append(acc)
 
+            # plot progress
+            if plot: self.plot(iteration=it, last_iteration=it==(iterations-1), **plot_options)
+
+            # print progress
             if self.data_validation_X is not None:
                 # Compute accuracy validation
                 predictions = [self.output_to_prediction(self.variational_classifier(x, self.params)) for x in self.data_validation_X]
@@ -149,37 +169,44 @@ class score_predictor:
                 # Print progress (cost and accuracy for this batch)
                 print("Iter: {:5d} | Cost: {:0.7f} | Accuracy: {:0.7f} ".format(it + 1, cost, acc))
 
-            if plot: self.plot(**plot_options)
+            
 
+    def predict(self, input):
+        return self.output_to_prediction(self.variational_classifier(input, self.params))
 
-    def plot(self, cost=True, accuracy=True, accuracy_validation=True):
+    def plot(self, iteration, last_iteration=False, cost=True, accuracy=True, accuracy_validation=True, plot_every=1):
 
-        # Create a new figure
-        fig, ax1 = plt.subplots()
+        if (iteration+1) % plot_every == 0 or last_iteration:
+            
+            # Clear previous iteration outputs
+            clear_output(wait=True)
 
-        # Create a second y-axis that shares the same x-axis
-        ax2 = ax1.twinx()
+            # Create a new figure
+            fig, ax1 = plt.subplots()
 
-        if cost:
-            # Plot cost on the first y-axis
-            ax1.plot(self.costs, 'g-')
-            ax1.set_xlabel('Iteration')
-            ax1.set_ylabel('Cost', color='g')
-            ax1.tick_params('y', colors='g')
+            # Create a second y-axis that shares the same x-axis
+            ax2 = ax1.twinx()
 
-        if accuracy:
-            # Plot accuracy on the second y-axis
-            ax2.plot(self.accuracies_batch, 'b-')
-            ax2.set_ylabel('Accuracy', color='b')
-            ax2.tick_params('y', colors='b')
+            if cost:
+                # Plot cost on the first y-axis
+                ax1.plot(self.costs, 'g-')
+                ax1.set_xlabel('Iteration')
+                ax1.set_ylabel('Cost', color='g')
+                ax1.tick_params('y', colors='g')
 
-        if self.data_validation_X is not None and accuracy_validation:
-            # Plot accuracy (validation) on the second y-axis
-            ax2.plot(self.accuracies_validation, 'r-')
+            if accuracy:
+                # Plot accuracy on the second y-axis
+                ax2.plot(self.accuracies_batch, 'b-')
+                ax2.set_ylabel('Accuracy', color='b')
+                ax2.tick_params('y', colors='b')
 
-        plt.title('Cost and Accuracy Over Iterations')
-        plt.grid(True)
-        plt.show()
+            if self.data_validation_X is not None and accuracy_validation:
+                # Plot accuracy (validation) on the second y-axis
+                ax2.plot(self.accuracies_validation, 'r-')
+
+            plt.title('Cost and Accuracy Over Iterations')
+            plt.grid(True)
+            plt.show()
 
 
 
