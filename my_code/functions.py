@@ -5,7 +5,13 @@ import random
 
 ###--- AMINOACIDS DATA ---###
 
-# amminoacids maps
+# amminoacids maps  
+''' 
+ - code: is a three letter code for the aminoacid
+ - letter: is the one letter code for the aminoacid
+ - number: is the number associated to the aminoacid, also used as index in the matrices
+ - angle: is the angle associated to the aminoacid
+'''
 type_map = {
     'GLY': ['G', 0],
     'ILE': ['I', 1],
@@ -28,10 +34,10 @@ type_map = {
     'GLU': ['E', 18],
 }
 POSSIBLE_ANGLES = np.linspace(0, 2*np.pi, len(type_map)).tolist()
-POSSIBLE_AMINOACIDS = [v[0] for v in type_map.values()]
-code_map = {k: v[1] for k, v in type_map.items()}
-letter_map = {v[0]: v[1] for v in type_map.values()}
-angles_map = {amino: angle for angle, amino in zip(POSSIBLE_ANGLES, POSSIBLE_AMINOACIDS)}
+POSSIBLE_AMINOACIDS_LETTER = [v[0] for v in type_map.values()]
+code_to_number = {k: v[1] for k, v in type_map.items()}
+letter_to_number = {v[0]: v[1] for v in type_map.values()}
+letter_to_angle = {letter: angle for angle, letter in zip(POSSIBLE_ANGLES, POSSIBLE_AMINOACIDS_LETTER)}
 
 def read_energies_file(file_single_path, file_pair_path):
     ### SINGLE ENERGIES ###
@@ -49,7 +55,7 @@ def read_energies_file(file_single_path, file_pair_path):
         if not line.startswith('#########'):
             line = line.split()
             residue_idx = int(line[1])-1
-            type_idx = code_map[line[3][-3:]]
+            type_idx = code_to_number[line[3][-3:]]
             value = float(line[-1])
             h[residue_idx, type_idx] = value
 
@@ -71,8 +77,8 @@ def read_energies_file(file_single_path, file_pair_path):
 
             residue_1_idx = int(line[1])-1
             residue_2_idx = int(line[5])-1
-            type_1_idx = code_map[line[3][-3:]]
-            type_2_idx = code_map[line[7][-3:]]
+            type_1_idx = code_to_number[line[3][-3:]]
+            type_2_idx = code_to_number[line[7][-3:]]
             value = float(line[-1])
             J[residue_1_idx, residue_2_idx, type_1_idx, type_2_idx] = value
 
@@ -93,11 +99,14 @@ def read_data_file(file_path):
     return strings, numbers
 
 def string_to_angles(string):
-    return [letter_map[letter] for letter in string]
+    return [letter_to_angle[letter] for letter in string]
+
+def string_to_numbers(string):
+    return [letter_to_number[letter] for letter in string]
 
 def string_to_energy(string, h, J):
 
-    vector = string_to_angles(string)
+    vector = string_to_numbers(string)
 
     energy = np.sum(h[np.arange(len(vector)), vector]) + \
              np.sum([J[i, j, vector[i], vector[j]] for i in range(len(vector)) for j in range(len(vector))])
@@ -115,7 +124,7 @@ def generate_random_data_from_energies(file_single_path, file_pair_path, file_ou
     with open(file_out_path, 'w') as file:
 
         while n_samples < n_samples_to_do:
-            string = ''.join(random.choice(POSSIBLE_AMINOACIDS) for _ in range(12))
+            string = ''.join(random.choice(POSSIBLE_AMINOACIDS_LETTER) for _ in range(12))
             score = string_to_energy(string, h, J)
 
             if max_score is None or score <= max_score:
