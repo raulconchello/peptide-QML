@@ -17,8 +17,6 @@ class model:
             n_qubits,
             circuit_layers,
             device = "default.qubit",
-            optimizer = qml.NesterovMomentumOptimizer(0.5),
-            batch_size = 5,
             bias = True,
             output_to_prediction = get_value
         ):
@@ -34,10 +32,6 @@ class model:
             raise Exception('The first circuit layer must be a state preparation layer.')
         if self.circuit_layers[-1].mesuarment_layer == False:
             raise Exception('The last circuit layer must be a mesuarment layer.')
-
-        # optimizer and batch size
-        self.opt = optimizer
-        self.batch_size = batch_size
 
         # parameters and bias, and training records
         self.bias = bias
@@ -127,7 +121,19 @@ class model:
         }
         return cost
     
-    def train(self, iterations, initialize_params=False, plot=True, plot_options={}):
+    def train(
+                self,  
+                epochs = 10, 
+                optimizer = qml.GradientDescentOptimizer(),
+                batch_size = 10,
+                initialize_params=False, 
+                plot=True, 
+                plot_options={}
+            ):
+        
+        # set optimizer and batch size
+        self.optimizer = optimizer
+        self.batch_size = batch_size
 
         if getattr(self, 'data_X', None) is None or getattr(self, 'data_Y', None) is None:
             raise Exception('Data not set. Use set_data() method.')
@@ -135,39 +141,48 @@ class model:
         if initialize_params: 
             self.initialize_params()
 
-        for it in range(iterations):
+        iterations = (len(self.data_X) // self.batch_size)
 
-            # Get batch            
-            batch_index = np.random.randint(0, len(self.data_X), (self.batch_size,))
-            X_batch = self.data_X[batch_index]
-            Y_batch = self.data_Y[batch_index]
+        for epoch in range(epochs):
 
-            # Update parameters and append cost
-            params, cost = self.opt.step_and_cost(self.cost, X_batch, Y_batch, *self.params)
-            self.params = params[2:]
-            self.costs.append(cost)
+            # put random order in data
+            random_order = np.random.permutation(len(self.data_X))
+            data_X = self.data_X[random_order]
+            data_Y = self.data_Y[random_order]
 
-            # Compute accuracy batch
-            predictions = [self.output_to_prediction(x) for x in self.last_cost['output']]
-            acc = self.accuracy(Y_batch, predictions)
-            self.accuracies_batch.append(acc)
+            for it in range(iterations):
 
-            # plot progress
-            if plot: self.plot(iteration=it, last_iteration=it==(iterations-1), **plot_options)
+                # Get batch            
+                batch_index = slice(it * self.batch_size, (it + 1) * self.batch_size)
+                X_batch = data_X[batch_index]
+                Y_batch = data_Y[batch_index]
 
-            # print progress
-            if self.data_validation_X is not None:
-                # Compute accuracy validation
-                predictions = [self.output_to_prediction(self.variational_classifier(x, self.params)) for x in self.data_validation_X]
-                acc_val = self.accuracy(self.data_validation_Y, predictions)
-                self.accuracies_validation.append(acc_val)
+                # Update parameters and append cost
+                params, cost = self.optimizer.step_and_cost(self.cost, X_batch, Y_batch, *self.params)
+                self.params = params[2:]
+                self.costs.append(cost)
 
-                # Print progress (cost, accuracy batch and accuracy validation for this batch)
-                print("Iter: {:5d} | Cost: {:0.7f} | Accuracy: {:0.7f} | Accuracy validation: {:0.7f}".format(it + 1, cost, acc, acc_val))
+                # Compute accuracy batch
+                predictions = [self.output_to_prediction(x) for x in self.last_cost['output']]
+                acc = self.accuracy(Y_batch, predictions)
+                self.accuracies_batch.append(acc)
 
-            else:
-                # Print progress (cost and accuracy for this batch)
-                print("Iter: {:5d} | Cost: {:0.7f} | Accuracy: {:0.7f} ".format(it + 1, cost, acc))
+                # plot progress
+                if plot: self.plot(iteration=it, last_iteration=it==(iterations-1), **plot_options)
+
+                # print progress
+                if self.data_validation_X is not None:
+                    # Compute accuracy validation
+                    predictions = [self.output_to_prediction(self.variational_classifier(x, self.params)) for x in self.data_validation_X]
+                    acc_val = self.accuracy(self.data_validation_Y, predictions)
+                    self.accuracies_validation.append(acc_val)
+
+                    # Print progress (cost, accuracy batch and accuracy validation for this batch)
+                    print("Epoch: {} | Iter: {:5d} | Cost: {:0.7f} | Accuracy: {:0.7f} | Accuracy validation: {:0.7f}".format(epoch, it + 1, cost, acc, acc_val))
+
+                else:
+                    # Print progress (cost and accuracy for this batch)
+                    print("Epoch: {} | Iter: {:5d} | Cost: {:0.7f} | Accuracy: {:0.7f} ".format(epoch, it + 1, cost, acc))
 
             
 
