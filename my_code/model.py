@@ -1,5 +1,4 @@
 import pennylane as qml
-import numpy
 from pennylane import numpy as np
 import matplotlib.pyplot as plt
 from IPython.display import clear_output
@@ -14,7 +13,7 @@ class model:
 
     def __init__(   
             self, 
-            n_qubits,
+            n_qubits_data,
             circuit_layers,
             device = "default.qubit",
             bias = True,
@@ -22,8 +21,8 @@ class model:
         ):
 
         # number of qubits and device
-        self.n_qubits = n_qubits
-        self.dev = qml.device(device, wires=n_qubits)
+        self.n_qubits = n_qubits_data
+        self.dev = qml.device(device, wires=n_qubits_data)
 
         # circuit_layers
         self.circuit_layers = circuit_layers
@@ -126,7 +125,8 @@ class model:
                 epochs = 10, 
                 optimizer = qml.GradientDescentOptimizer(),
                 batch_size = 10,
-                initialize_params=False, 
+                randomize_batches = False,
+                initialize_params = False, 
                 plot=True, 
                 plot_options={}
             ):
@@ -143,19 +143,25 @@ class model:
 
         iterations = (len(self.data_X) // self.batch_size)
 
+        # train
         for epoch in range(epochs):
 
-            # put random order in data
-            random_order = np.random.permutation(len(self.data_X))
-            data_X = self.data_X[random_order]
-            data_Y = self.data_Y[random_order]
+            # batches
+            if randomize_batches or (epoch == 0):
+                # put random order in data
+                random_order = np.random.permutation(len(self.data_X))
+                data_X = self.data_X[random_order]
+                data_Y = self.data_Y[random_order]
+
+                #create batches
+                data_X_batches = np.array_split(data_X, iterations)
+                data_Y_batches = np.array_split(data_Y, iterations)
 
             for it in range(iterations):
 
-                # Get batch            
-                batch_index = slice(it * self.batch_size, (it + 1) * self.batch_size)
-                X_batch = data_X[batch_index]
-                Y_batch = data_Y[batch_index]
+                # Get batch
+                X_batch = data_X_batches[it]
+                Y_batch = data_Y_batches[it]                
 
                 # Update parameters and append cost
                 params, cost = self.optimizer.step_and_cost(self.cost, X_batch, Y_batch, *self.params)
