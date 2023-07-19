@@ -2,10 +2,20 @@ from typing import Any
 import pennylane as qml
 from pennylane import numpy as np
 
+###--- GATES ---###
+def qml_RZZ(params, wires):
+    """
+    RZZ gate.
+    """
+    qml.CNOT(wires=wires)
+    qml.RZ(params, wires=wires[1])
+    qml.CNOT(wires=wires)
+
+### --- LAYERS --- ###
 # layer classes
 class layer:
 
-    POSSIBLE_QUBITS = ['all', 'first_half', 'second_half', 'odd', 'even']
+    POSSIBLE_QUBITS = ['all', 'first_half', 'second_half', 'odd', 'even', 'ancillas', 'all_but_first']
     statepreparation_layer = False
     mesuarment_layer = False
 
@@ -18,7 +28,8 @@ class layer:
         """
 
         self._qubits = qubits
-        self.n_qubits = None
+        self.n_qubits_circuit = None
+        self.n_ancillas_circuit = None
 
     #we check if self._qubits is a string or a list of integers if it is a string we check that is a valid string: 'all', 'first_half', 'second_half', 'odd', 'even'
     def __setattr__(self, __name: str, __value: Any):
@@ -37,19 +48,25 @@ class layer:
     @property
     def qubits(self):
 
-        if self.n_qubits is None:
-            raise Exception('n_qubits is None. It must be set before calling qubits property.')
+        if self.n_qubits_circuit is None:
+            raise Exception('n_qubits_circuit is None. It must be set before calling qubits property.')
 
         if self._qubits == self.POSSIBLE_QUBITS[0]:
-            return [i for i in range(self.n_qubits)]
+            return [i for i in range(self.n_qubits_circuit)]
         if self._qubits == self.POSSIBLE_QUBITS[1]:
-            return [i for i in range(self.n_qubits//2)]
+            return [i for i in range(self.n_qubits_circuit//2)]
         if self._qubits == self.POSSIBLE_QUBITS[2]:
-            return [i for i in range(self.n_qubits//2, self.n_qubits)]
+            return [i for i in range(self.n_qubits_circuit//2, self.n_qubits_circuit)]
         if self._qubits == self.POSSIBLE_QUBITS[3]:
-            return [i for i in range(self.n_qubits) if i%2==1]
+            return [i for i in range(self.n_qubits_circuit) if i%2==1]
         if self._qubits == self.POSSIBLE_QUBITS[4]:
-            return [i for i in range(self.n_qubits) if i%2==0]
+            return [i for i in range(self.n_qubits_circuit) if i%2==0]
+        if self._qubits == self.POSSIBLE_QUBITS[5]:
+            if self.n_ancillas_circuit is None:
+                raise Exception('n_ancillas_circuit is None. You must set some ancillas to use "ancilla".')
+            return [i for i in range(-1*self.n_ancillas_circuit, 0)]
+        if self._qubits == self.POSSIBLE_QUBITS[6]:
+            return [i for i in range(1, self.n_qubits_circuit)]
         else:
             return self._qubits
     
@@ -135,25 +152,43 @@ class rotationZZ_layer(layer):
             qubits = self.qubits
             n_qubits = len(qubits)
 
-            for i in range(0,len(qubits),2): # ZZ rotation for neighboring qubits (qubits 0 and 1, qubits 2 and 3, ..., qubits n_wires-1 and 0)
+            for x in range(2):
+                for i in range(x,len(qubits),2): # ZZ rotation for neighboring qubits 
+                    qml_RZZ(params[i,0], wires=[qubits[i], qubits[(i+1)%n_qubits]]) 
 
-                ## ZZ rotation between qubits i and i+1
-                qml.CNOT(wires=[qubits[i], qubits[(i+1)%n_qubits]])
-                qml.RZ(params[i,0], wires=qubits[(i+1)%n_qubits])
-                qml.CNOT(wires=[qubits[i], qubits[(i+1)%n_qubits]])
 
-            for i in range(1,len(qubits),2): # ZZ rotation for neighboring qubits (qubits 1 and 2, qubits 3 and 4, ..., qubits n_wires-2 and n_wires-1)
 
-                ## ZZ rotation between qubits i and i+1
-                qml.CNOT(wires=[qubits[i], qubits[(i+1)%n_qubits]])
-                qml.RZ(params[i,0], wires=qubits[(i+1)%n_qubits])
-                qml.CNOT(wires=[qubits[i], qubits[(i+1)%n_qubits]])
+# ancilla layer classes
+class ancillas(layer):
+    ancilla_layer = True
+    
+    def __init__(self, n_ancillas, n_qubits='all'):
+        super().__init__(n_qubits)
+        self.n_ancillas = n_ancillas
+
+    @property
+    def shape_params(self):
+        return (self.n_ancillas, len(self.qubits)*3 + 2)
+
+    def gates(self, params):
+        for i in range(self.n_ancillas):
+            i_ancilla = -1*(i+1)
+            qml.RX(params[i,0], wires=[i_ancilla])
+            qml.RZ(params[i,1], wires=[i_ancilla])
+
+            j = 2
+            for q in self.qubits: 
+                qml_RZZ(params[i,j], wires=[q,i_ancilla] )
+                qml.RX (params[i,j+1], wires=[i_ancilla])
+                qml.RZ (params[i,j+2], wires=[i_ancilla])
+                j += 3
+        
 
         
 
-# measurement layer classes
+# mesurament layer classes
 class mesurament(layer):
-    mesuarment_layer = True
+    mesurament_layer = True
 
     def gates(self):
 
