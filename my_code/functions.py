@@ -114,7 +114,7 @@ def string_to_energy(string, h, J):
     return energy.item()
 
 
-def generate_random_data_from_energies(file_single_path, file_pair_path, file_out_path, max_score=None, n_samples=1000):
+def generate_random_data_from_energies(file_single_path, file_pair_path, file_out_path, max_score=None, n_samples=1000, n_amino_acids=12):
 
     h, J = read_energies_file(file_single_path, file_pair_path)
 
@@ -124,7 +124,7 @@ def generate_random_data_from_energies(file_single_path, file_pair_path, file_ou
     with open(file_out_path, 'w') as file:
 
         while n_samples < n_samples_to_do:
-            string = ''.join(random.choice(POSSIBLE_AMINOACIDS_LETTER) for _ in range(12))
+            string = ''.join(random.choice(POSSIBLE_AMINOACIDS_LETTER) for _ in range(n_amino_acids))
             score = string_to_energy(string, h, J)
 
             if max_score is None or score <= max_score:
