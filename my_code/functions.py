@@ -33,11 +33,13 @@ type_map = {
     'ASP': ['D', 17],
     'GLU': ['E', 18],
 }
+n_aminoacids = len(type_map)
 POSSIBLE_ANGLES = np.linspace(0, 2*np.pi, len(type_map)).tolist()
 POSSIBLE_AMINOACIDS_LETTER = [v[0] for v in type_map.values()]
 code_to_number = {k: v[1] for k, v in type_map.items()}
 letter_to_number = {v[0]: v[1] for v in type_map.values()}
 letter_to_angle = {letter: angle for angle, letter in zip(POSSIBLE_ANGLES, POSSIBLE_AMINOACIDS_LETTER)}
+letter_to_vector = {v[0]: np.eye(n_aminoacids)[v[1]] for v in type_map.values()}
 
 def read_energies_file(file_single_path, file_pair_path):
     ### SINGLE ENERGIES ###
@@ -103,6 +105,9 @@ def string_to_angles(string):
 
 def string_to_numbers(string):
     return [letter_to_number[letter] for letter in string]
+
+def string_to_vector(string):
+    return np.array([letter_to_vector[letter] for letter in string])
 
 def string_to_energy(string, h, J):
 
