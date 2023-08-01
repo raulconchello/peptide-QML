@@ -201,7 +201,7 @@ class pytorch_model:
         #check if the output file already exists
         while os.path.exists(output_filename):
             print("The file {} already exists".format(output_filename))
-            output_filename = output_filename[:-5] + str(int(output_filename[-5]) + 1)
+            output_filename = output_filename[:-5] + str(int(output_filename[-5]) + 1) + ".pth"
             print("Trying to save the file as {}".format(output_filename))
 
 
