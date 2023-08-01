@@ -52,11 +52,7 @@ class pytorch_model:
                 time=True
     ):
         
-        # self variables
-        model = self.model
-        losses_batches = self.losses_batches
-        losses_epochs = self.losses_epochs
-        losses_epochs_validation = self.losses_epochs_validation
+        # data
         input_data = self.data_X
         target_data = self.data_Y
         input_data_validation = self.data_X_validation
@@ -68,13 +64,13 @@ class pytorch_model:
 
         # loss function and optimizer
         self.loss_function = loss_function()
-        self.optimizer = optimizer(model.parameters(), **optimizer_options)
+        self.optimizer = optimizer(self.model.parameters(), **optimizer_options)
         loss_function = self.loss_function
         optimizer = self.optimizer
 
         # keep track of the losses
-        losses_batches = []
-        losses_epochs = [loss_function(model(input_data), target_data).item()]
+        self.losses_batches = []
+        self.losses_epochs = [loss_function(self.model(input_data), target_data).item()]
 
         # validation
         if validation and (input_data_validation is None or target_data_validation is None): #if no validation data is given, we don't do validation
@@ -86,13 +82,13 @@ class pytorch_model:
             t_validation = target_data_validation[::n_validation] 
 
             # keep track of the losses
-            losses_epochs_validation = [loss_function(model(i_validation), t_validation).item()]
+            self.losses_epochs_validation = [loss_function(self.model(i_validation), t_validation).item()]
 
             # print the loss before training
-            print('Epoch [{}/{}], Loss: {:.4f}, Loss validation: {:.4f}'.format('0', num_epochs, losses_epochs[-1], losses_epochs_validation[-1]))            
+            print('Epoch [{}/{}], Loss: {:.4f}, Loss validation: {:.4f}'.format('0', num_epochs, self.losses_epochs[-1], self.losses_epochs_validation[-1]))            
         else:
             # print the loss before training
-            print('Epoch [{}/{}], Loss: {:.4f}'.format('0', num_epochs, losses_epochs[-1]))
+            print('Epoch [{}/{}], Loss: {:.4f}'.format('0', num_epochs, self.losses_epochs[-1]))
 
         # training loop
         for epoch in range(num_epochs):
@@ -103,7 +99,7 @@ class pytorch_model:
             target_data = target_data[indices]
 
             # add a new entry to the epoch losses
-            losses_epochs.append(0)
+            self.losses_epochs.append(0)
 
             # batch training
             for i in range(0, input_data.size(0), batch_size):
@@ -112,7 +108,7 @@ class pytorch_model:
                 targets = target_data[i:i+batch_size]
 
                 # Forward pass
-                outputs = model(inputs)
+                outputs = self.model(inputs)
 
                 # Compute the loss
                 loss = loss_function(outputs, targets)
@@ -123,27 +119,27 @@ class pytorch_model:
                 optimizer.step()
 
                 # Store the loss
-                losses_batches.append(loss.item())
+                self.losses_batches.append(loss.item())
 
                 # print the loss of the batch
                 if print_batch:
                     print('- Epoch [{}/{}], i: [{}/{}], Loss: {:.4f}'.format(epoch+1, num_epochs, i, input_data.size(0), loss.item()), end='\r')
 
                 # add to the epoch loss
-                losses_epochs[-1] += loss.item() 
+                self.losses_epochs[-1] += loss.item() 
 
             # divide the epoch loss by the number of batches, to get the average loss
-            losses_epochs[-1] /= (input_data.size(0)/batch_size)
+            self.losses_epochs[-1] /= (input_data.size(0)/batch_size)
 
             # Validation
             if validation:
-                losses_epochs_validation.append(loss_function(model(i_validation), t_validation).item()) 
+                self.losses_epochs_validation.append(loss_function(self.model(i_validation), t_validation).item()) 
 
             # print the loss of "n_print_validation" strings of the validation data
             if validation:
                 n_print_validation = min(n_print_validation, len(i_validation)) #if n_print_validation is bigger than the number of validation data points, we print all of them
                 for i in range(n_print_validation):
-                    prediction = model(i_validation[i])
+                    prediction = self.model(i_validation[i])
                     target = t_validation[i]
                     print('\t Validation string, \t i: {}; \t prediction: {:.4f}, \t target: {:.4f}, \t loss: {:.4f}'.format(i, prediction.item(), target.item(), loss_function(prediction, target).item()))
 
@@ -162,10 +158,10 @@ class pytorch_model:
 
                 # Print the loss and remaining time for this epoch
                 print('Epoch [{}/{}], Loss: {:.4f}, Loss validation: {:.4f}, Time remaining: ~{}h {}m {:.0f}s'.format(
-                    epoch+1, num_epochs, losses_epochs[-1], losses_epochs_validation[-1], hours, minutes, seconds))
+                    epoch+1, num_epochs, self.losses_epochs[-1], self.losses_epochs_validation[-1], hours, minutes, seconds))
             else:
                 # Print the loss for this epoch
-                print('Epoch [{}/{}], Loss: {:.4f}, Loss validation: {:.4f}'.format(epoch+1, num_epochs, losses_epochs[-1], losses_epochs_validation[-1]))
+                print('Epoch [{}/{}], Loss: {:.4f}, Loss validation: {:.4f}'.format(epoch+1, num_epochs, self.losses_epochs[-1], self.losses_epochs_validation[-1]))
 
 
     def print_validation(self):
