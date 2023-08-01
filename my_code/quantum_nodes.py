@@ -82,9 +82,9 @@ class circuit:
             device="default.qubit",
             device_options = {'shots': None},
             qnode_options = {'interface': 'torch'},
-            embedding = Q_parts.AngleEmbedding, 
-            ansatz = Q_parts.Ansatz_11,
-            measurement = Q_parts.exp_Z(1),
+            embedding = parts.AngleEmbedding, 
+            ansatz = parts.Ansatz_11,
+            measurement = parts.exp_Z(1),
             n_layers = 10,
             wrapper_qlayer = QLayer,
         ):
