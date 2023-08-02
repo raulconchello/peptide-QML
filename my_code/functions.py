@@ -1,6 +1,6 @@
 import pennylane as qml
 from pennylane import numpy as np
-import random
+import random, os
 
 
 ###--- AMINOACIDS DATA ---###
@@ -155,3 +155,30 @@ def create_validating_set(X, Y, percentage=0.1):
 
     return X_training, Y_training, X_validating, Y_validating
 
+
+
+###--- SAVE DATA ---###
+def get_name_file_to_save(name_notebook, initial_path, extension, version, postfix=""):
+
+    dict_extension_folder = {"png": "plots", "pth": "models", "pdf": "pdfs", "ipynb": "notebooks", "txt": "txts"}
+
+    day = name_notebook[:4]
+    folder = initial_path + "checkpoints/" + day
+    filename = folder + "/" + dict_extension_folder[extension] + "/" + name_notebook[:-6] + postfix + "_" + str(version) + "." + extension
+
+    # Check if the folder exists and if it doesn't exist, create it
+    if not os.path.exists(folder):
+
+        os.makedirs(folder)
+        print(f"Folder '{folder}' created successfully.")
+
+        for subfolder in ["models", "plots", "pdfs", "notebooks", "txts"]:
+            os.makedirs(folder + "/" + subfolder)
+            print(f"Folder '{folder}/{subfolder}' created successfully.")
+
+
+    # check if the file exists and print a message
+    if os.path.exists(filename):
+        print("The file {} already exists, it will be replaced".format(filename))
+
+    return filename

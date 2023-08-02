@@ -1,0 +1,22 @@
+Validation Results:
+i: 0, 		 target: 0.1900, 	 output: 0.1133, 	 loss: 0.4037
+i: 1, 		 target: 0.1750, 	 output: 0.1133, 	 loss: 0.3527
+i: 2, 		 target: -0.0698, 	 output: 0.1133, 	 loss: 2.6235
+i: 3, 		 target: 0.1216, 	 output: 0.1133, 	 loss: 0.0684
+i: 4, 		 target: -0.0842, 	 output: 0.1133, 	 loss: 2.3452
+i: 5, 		 target: 0.2051, 	 output: 0.1133, 	 loss: 0.4478
+i: 6, 		 target: 0.2904, 	 output: 0.1133, 	 loss: 0.6100
+i: 7, 		 target: -0.0718, 	 output: 0.1133, 	 loss: 2.5766
+i: 8, 		 target: -0.0299, 	 output: 0.1133, 	 loss: 4.7854
+i: 9, 		 target: 0.1335, 	 output: 0.1133, 	 loss: 0.1513
+i: 10, 		 target: -0.0484, 	 output: 0.1133, 	 loss: 3.3383
+i: 11, 		 target: 0.0469, 	 output: 0.1133, 	 loss: 1.4134
+i: 12, 		 target: -0.0615, 	 output: 0.1133, 	 loss: 2.8424
+i: 13, 		 target: -0.0388, 	 output: 0.1133, 	 loss: 3.9219
+i: 14, 		 target: 0.1222, 	 output: 0.1133, 	 loss: 0.0730
+i: 15, 		 target: -0.1081, 	 output: 0.1133, 	 loss: 2.0479
+i: 16, 		 target: -0.0758, 	 output: 0.1133, 	 loss: 2.4940
+i: 17, 		 target: -0.0393, 	 output: 0.1133, 	 loss: 3.8825
+i: 18, 		 target: -0.0715, 	 output: 0.1133, 	 loss: 2.5844
+i: 19, 		 target: -0.0765, 	 output: 0.1133, 	 loss: 2.4804
+Average loss: 0.0394

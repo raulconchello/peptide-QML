@@ -1,10 +1,12 @@
-from typing import Any
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import time as t
 import matplotlib.pyplot as plt
 import os
+from copy import deepcopy
+
+from . import functions as f
 
 torch.set_default_dtype(torch.float64)
 
@@ -20,15 +22,28 @@ class RelativeMSELoss(nn.Module):
 
 class pytorch_model:
 
-    def __init__(self, circuit_layers):
+    def __init__(   self, 
+                    circuit_layers, 
+                    save_options,
+                    keep_track_params = False,
+    ):
 
         # model
         self.model = nn.Sequential(*circuit_layers)
 
-        # keep track of the losses
+        # save options
+        self.name_notebook = save_options['name_notebook']
+        self.initial_path = save_options['initial_path']
+        self.n_trained = 0
+
+        # keep track of the losses (and parameters)
         self.losses_batches = None
         self.losses_epochs = None
         self.losses_epochs_validation = None
+
+        self.keep_track_params = keep_track_params
+        self.parameters = None
+
 
     def __call__(self, *args, **kwds):
         return self.model(*args, **kwds)
@@ -59,6 +74,8 @@ class pytorch_model:
                 time=True
     ):
         
+        self.n_trained += 1
+        
         # data
         input_data = self.data_X
         target_data = self.data_Y
@@ -75,9 +92,10 @@ class pytorch_model:
         loss_function = self.loss_function
         optimizer = self.optimizer
 
-        # keep track of the losses
+        # keep track of the losses (and parameters)
         self.losses_batches = []
         self.losses_epochs = [loss_function(self.model(input_data), target_data).item()]
+        if self.keep_track_params:  self.parameters = [deepcopy(dict(self.model.state_dict().items()))]
 
         # validation
         if validation and (input_data_validation is None or target_data_validation is None): #if no validation data is given, we don't do validation
@@ -135,6 +153,9 @@ class pytorch_model:
                 # add to the epoch loss
                 self.losses_epochs[-1] += loss.item() 
 
+                # keep track of the parameters
+                if self.keep_track_params:  self.parameters.append(deepcopy(dict(self.model.state_dict().items())))
+
             # divide the epoch loss by the number of batches, to get the average loss
             self.losses_epochs[-1] /= (input_data.size(0)/batch_size)
 
@@ -170,57 +191,107 @@ class pytorch_model:
                 # Print the loss for this epoch
                 print('Epoch [{}/{}], Loss: {:.4f}, Loss validation: {:.4f}'.format(epoch+1, num_epochs, self.losses_epochs[-1], self.losses_epochs_validation[-1]))
 
+    def plot_parameter(self, layer, index=None):
 
-    def print_validation(self):
+        parameter_evolution = []
+
+        if index is None:
+            for i in range(len(self.parameters)):
+                parameter_evolution.append(torch.mean(self.parameters[i][layer]).item())
+        else:
+            for i in range(len(self.parameters)):
+                parameter_evolution.append(self.parameters[i][layer][index].item())
+
+        plt.figure()
+        plt.plot(parameter_evolution)
+        plt.xlabel('Epoch')
+        plt.ylabel('Parameter value')
+        plt.title('Parameter ({}, {})'.format(layer, index))
+        plt.show()
+
+
+    def print_validation(self, save=False, precision=3, percentatge=1):
+
+        # data cut with percentatge
+        data_X_validation = self.data_X_validation[:int(len(self.data_X_validation)*percentatge)]
+        data_Y_validation = self.data_Y_validation[:int(len(self.data_Y_validation)*percentatge)]
+
+        # varaibles
         avg_loss = 0
-        for x, (i, t) in enumerate(zip((self.data_X_validation), self.data_Y_validation)):
+        output_lines = []
+        format_string = 'i: {}, \t\t target: {:.%df}, \t output: {:.%df}, \t loss: {:.%df}' % (precision, precision, precision)
+
+        # function to print and save
+        def output(string):
+            output_lines.append(string)
+            print(string)
+
+        # print and save in variables
+        for x, (i, t) in enumerate(zip((data_X_validation), data_Y_validation)):
             outputs = self.model(i)
             loss = self.loss_function(outputs, t)
             avg_loss += loss/len(self.data_Y_validation)
-            print('i: {}, \t target: {:.3f}, \t output: {:.3f}, \t loss: {:.3f}'.format(x, t.item(), outputs.item(), loss))
+            output(format_string.format(x, t.item(), outputs.item(), loss))
 
-        print('Average loss: {:.3f}'.format(avg_loss))
+        output('Average loss: {:.{}f}'.format(avg_loss, precision))
 
-    def plot_losses(self, batches=True, epochs=True, epochs_validation=True):
+        # save
+        if save:
+            save_filename = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="txt", version=self.n_trained, postfix="_validation")
+            with open(save_filename, 'w') as file:
+                file.write("Validation Results:\n")
+                file.write("\n".join(output_lines))
+                print("Saved in: ", save_filename)
+
+    def plot_losses(self, batches=True, epochs=True, epochs_validation=True, save=False):
         
         if batches:
             plt.figure()
             plt.plot(self.losses_batches)
             plt.title('Loss per batch')
+            if save: 
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.n_trained, postfix="_losses_batches")
+                plt.savefig(file)
+                print("Saved in: ", file)
             plt.show()
 
         if epochs:
             plt.figure()
             plt.plot(self.losses_epochs)
             plt.title('Loss per epoch')
+            if save: 
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.n_trained, postfix="_losses_epoch")
+                plt.savefig(file)
+                print("Saved in: ", file)
             plt.show()
 
         if epochs_validation:
             plt.figure()
             plt.plot(self.losses_epochs_validation)
             plt.title('Loss per epoch (validation)')
+            if save: 
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.n_trained, postfix="_losses_epoch_validation")
+                plt.savefig(file)
+                print("Saved in: ", file)
             plt.show()
 
-    def save_state_dict(self, name_notebook, initial_path=""):
 
-        output_filename = initial_path + "Notebooks/models/"+ name_notebook[:4] +"/" + name_notebook[:-6] + "_0.pth"
+    def save_state_dict(self):
 
-        #check if the output file already exists
-        while os.path.exists(output_filename):
-            print("The file {} already exists".format(output_filename))
-            output_filename = output_filename[:-5] + str(int(output_filename[-5]) + 1) + ".pth"
-            print("Trying to save the file as {}".format(output_filename))
-
+        output_filename = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="pth", version=self.n_trained)
 
         torch.save(self.model.state_dict(), output_filename)
 
         print("Model saved as {}".format(output_filename))
 
-        return output_filename[-5]
 
-    def load_state_dict(self, name_notebook, version=0, initial_path=""):
+    def load_state_dict(self, version=None, initial_path=None, name_notebook=None):
 
-        input_filename = initial_path + "Notebooks/models/"+ name_notebook[:4] +"/" + name_notebook[:-6] + "_" + version + ".pth"
+        version       = self.n_trained     if version is None       else version
+        initial_path  = self.initial_path  if initial_path is None  else initial_path
+        name_notebook = self.name_notebook if name_notebook is None else name_notebook
+
+        input_filename = initial_path + "checkpoints/"+ name_notebook[:4] +"/models/" + name_notebook[:-6] + "_" + str(version) + ".pth"
 
         #check if the input file exists
         if not os.path.exists(input_filename):
