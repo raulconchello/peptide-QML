@@ -1,8 +1,6 @@
 import pennylane as qml
 import numpy as np
 
-from .pytorch_wrappers import QLayer
-
 class parts:
 
     # Embeddings
@@ -28,9 +26,16 @@ class parts:
         def __init__(self, n_qubits):
             super().__init__(n_qubits)
             self.weights_shapes = [(n_qubits, 2), (n_qubits//2, 2)]
+            self.weights_sizes = [np.product(shape) for shape in self.weights_shapes]
+            self.weights_size = np.sum(self.weights_sizes)
     
-        def __call__(self, weights_1, weights_2):
+        def __call__(self, weights):
 
+            # split weights
+            weights_1 = weights[:self.weights_sizes[0]].reshape(self.weights_shapes[0])
+            weights_2 = weights[self.weights_sizes[0]:].reshape(self.weights_shapes[1])
+
+            # number of qubits
             n_qubits = self.n_qubits
             
             # rotations for each qubit
@@ -86,12 +91,12 @@ class circuit:
             ansatz = parts.Ansatz_11,
             measurement = parts.exp_Z(1),
             n_layers = 10,
-            wrapper_qlayer = QLayer,
+            wrapper_qlayer = None,
         ):
 
         # variables
         self.n_qubits = n_qubits
-        self.dev = qml.device(device, wires=n_qubits, **device_options),
+        self.dev = qml.device(device, wires=n_qubits, **device_options)
         self.n_layers = n_layers
 
         # parts of the circuit
@@ -100,32 +105,40 @@ class circuit:
         self.measurement = measurement(n_qubits)
 
         # circuit, qnode, and torch_qlayer
-        def circuit(input, *weights): 
+        def circuit(inputs, weights): 
+
+            #split weights into layers
+            weights = np.split(weights, n_layers)
+
             #embedding           
-            self.embedding(input)
+            self.embedding(inputs)
 
             #block
             for i in range(n_layers):
-                self.ansatz( *(w[i] for w in weights) )
+                self.ansatz( weights[i] )
 
             #measurement
-            return self.measurement(n_qubits)
+            return self.measurement()
         
-        self.weights_shapes = {k:(n_layers, *v) for k,v in self.ansatz.weights_shapes.items()}
+        self.weights_shape = {'weights': (n_layers*self.ansatz.weights_size,)}
         
-        self.qnode = qml.QNode(circuit, self.dev, **qnode_options)
-        self.torch_qlayer = wrapper_qlayer(qml.qnn.TorchLayer(self.qnode, self.ansatz.weights_shapes))
+        self.qnode = qml.QNode(func=circuit, device=self.dev, **qnode_options)
+        self.torch_qlayer = qml.qnn.TorchLayer(self.qnode, self.weights_shape)
+
+        if wrapper_qlayer is not None:
+            self.torch_qlayer = wrapper_qlayer(self.torch_qlayer)
 
     def __call__(self):
-        self.torch_qlayer
+        return self.torch_qlayer
+
 
     def draw(self, size=(50,3)):
 
-        input = [0 for i in range(self.n_qubits)]
-        weights = {k:np.zeros(*v) for k,v in self.weights_shapes.items()}
+        inputs = [0 for _ in range(self.n_qubits)]
+        weights = np.zeros(self.weights_shape['weights'])
 
         qml.drawer.use_style("black_white")
-        fig, ax = qml.draw_mpl(self.qnode, expansion_strategy="device")(input, **weights)
+        fig, ax = qml.draw_mpl(self.qnode, expansion_strategy="device")(inputs, weights)
         fig.set_size_inches(size)
 
         
