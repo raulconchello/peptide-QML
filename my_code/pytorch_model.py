@@ -1,3 +1,4 @@
+from typing import Any
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -28,6 +29,12 @@ class pytorch_model:
         self.losses_batches = None
         self.losses_epochs = None
         self.losses_epochs_validation = None
+
+    def __call__(self, *args, **kwds):
+        return self.model(*args, **kwds)
+
+    def __repr__(self):
+        return self.model.__repr__()
 
     def set_data(self, data_X, data_Y, data_X_validation, data_Y_validation):
         self.data_X = data_X
