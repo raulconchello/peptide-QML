@@ -1,0 +1,27 @@
+metadata:
+	data_file_path: peptide-QML/data/energies/PET/generated/bb14_Strings_Energies_10_000_4_aa.txt
+
+
+
+Model (notebook 0804-sq_1qm.ipynb, version 2):
+Sequential(
+  (0): <Quantum Torch Layer: func=circuit>
+)
+
+
+Layer by layer:
+# --- 0 --- #
+<Quantum Torch Layer: func=circuit>
+
+
+Training inputs:
+	loss_function: <class 'my_code.pytorch_model.RelativeMSELoss'>
+	optimizer: <class 'torch.optim.adam.Adam'>
+	optimizer_options: {'lr': 0.5}
+	num_epochs: 2
+	batch_size: 32
+	print_batch: True
+	validation: True
+	n_validation: 10
+	n_print_validation: 3
+	time: True
