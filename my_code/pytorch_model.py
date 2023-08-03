@@ -34,7 +34,7 @@ class pytorch_model:
         # save options
         self.name_notebook = save_options['name_notebook']
         self.initial_path = save_options['initial_path']
-        self.n_trained = 0
+        self.version = None
 
         # keep track of the losses (and parameters)
         self.losses_batches = None
@@ -74,7 +74,7 @@ class pytorch_model:
                 time=True
     ):
         
-        self.n_trained += 1
+        self.version = f.update_version(self.name_notebook, self.initial_path)
         
         # data
         input_data = self.data_X
@@ -191,7 +191,7 @@ class pytorch_model:
                 # Print the loss for this epoch
                 print('Epoch [{}/{}], Loss: {:.4f}, Loss validation: {:.4f}'.format(epoch+1, num_epochs, self.losses_epochs[-1], self.losses_epochs_validation[-1]))
 
-    def plot_parameter(self, layer, index=None):
+    def plot_parameter(self, layer, index=None, save=False):
 
         parameter_evolution = []
 
@@ -207,6 +207,12 @@ class pytorch_model:
         plt.xlabel('Epoch')
         plt.ylabel('Parameter value')
         plt.title('Parameter ({}, {})'.format(layer, index))
+
+        if save:
+            file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix= "_parameter_{}_{}".format(layer, index))
+            plt.savefig(file)
+            print("Saved in: ", file)
+
         plt.show()
 
 
@@ -237,7 +243,7 @@ class pytorch_model:
 
         # save
         if save:
-            save_filename = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="txt", version=self.n_trained, postfix="_validation")
+            save_filename = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="txt", version=self.version, postfix="_validation")
             with open(save_filename, 'w') as file:
                 file.write("Validation Results:\n")
                 file.write("\n".join(output_lines))
@@ -250,7 +256,7 @@ class pytorch_model:
             plt.plot(self.losses_batches)
             plt.title('Loss per batch')
             if save: 
-                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.n_trained, postfix="_losses_batches")
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_losses_batches")
                 plt.savefig(file)
                 print("Saved in: ", file)
             plt.show()
@@ -260,7 +266,7 @@ class pytorch_model:
             plt.plot(self.losses_epochs)
             plt.title('Loss per epoch')
             if save: 
-                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.n_trained, postfix="_losses_epoch")
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_losses_epoch")
                 plt.savefig(file)
                 print("Saved in: ", file)
             plt.show()
@@ -270,7 +276,7 @@ class pytorch_model:
             plt.plot(self.losses_epochs_validation)
             plt.title('Loss per epoch (validation)')
             if save: 
-                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.n_trained, postfix="_losses_epoch_validation")
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_losses_epoch_validation")
                 plt.savefig(file)
                 print("Saved in: ", file)
             plt.show()
@@ -278,7 +284,7 @@ class pytorch_model:
 
     def save_state_dict(self):
 
-        output_filename = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="pth", version=self.n_trained)
+        output_filename = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="pth", version=self.version)
 
         torch.save(self.model.state_dict(), output_filename)
 
@@ -287,7 +293,7 @@ class pytorch_model:
 
     def load_state_dict(self, version=None, initial_path=None, name_notebook=None):
 
-        version       = self.n_trained     if version is None       else version
+        version       = self.version       if version is None       else version
         initial_path  = self.initial_path  if initial_path is None  else initial_path
         name_notebook = self.name_notebook if name_notebook is None else name_notebook
 
