@@ -158,13 +158,16 @@ def create_validating_set(X, Y, percentage=0.1):
 
 
 ###--- SAVE DATA ---###
-def get_name_file_to_save(name_notebook, initial_path, extension, version, postfix=""):
+def get_name_file_to_save(name_notebook, initial_path, extension, version=None, postfix=""):
 
-    dict_extension_folder = {"png": "plots", "pth": "models", "pdf": "pdfs", "ipynb": "notebooks", "txt": "txts"}
+    dict_extension_folder = {"png": "plots", "pth": "models", "pdf": "pdfs", "ipynb": "notebooks", "txt": "txts", "version": "versions"}
 
     day = name_notebook[:4]
     folder = initial_path + "checkpoints/" + day
-    filename = folder + "/" + dict_extension_folder[extension] + "/" + name_notebook[:-6] + postfix + "_" + str(version) + "." + extension
+    if version is None:
+        filename = folder + "/" + dict_extension_folder[extension] + "/" + name_notebook[:-6] + postfix + "." + extension
+    else:
+        filename = folder + "/" + dict_extension_folder[extension] + "/" + name_notebook[:-6] + postfix + "_" + str(version) + "." + extension
 
     # Check if the folder exists and if it doesn't exist, create it
     if not os.path.exists(folder):
@@ -172,13 +175,40 @@ def get_name_file_to_save(name_notebook, initial_path, extension, version, postf
         os.makedirs(folder)
         print(f"Folder '{folder}' created successfully.")
 
-        for subfolder in ["models", "plots", "pdfs", "notebooks", "txts"]:
+        for subfolder in ["models", "plots", "pdfs", "notebooks", "txts", "versions"]:
             os.makedirs(folder + "/" + subfolder)
             print(f"Folder '{folder}/{subfolder}' created successfully.")
 
 
     # check if the file exists and print a message
-    if os.path.exists(filename):
+    if os.path.exists(filename) and not version is None:
         print("The file {} already exists, it will be replaced".format(filename))
 
     return filename
+
+def read_version(name_notebook, initial_path, return_filename=False):
+
+    filename = get_name_file_to_save(name_notebook, initial_path, "version")
+
+    # if the file exists, read the version, otherwise create the file and set the version to 0
+    if os.path.exists(filename):
+        with open(filename, 'r') as file:
+            version = int(file.readline())
+    else:
+        with open(filename, 'w') as file:
+            version = 0
+            file.write(str(version))
+
+    if return_filename:
+        return version, filename
+    return version
+
+def update_version(name_notebook, initial_path):
+
+    version, filename = read_version(name_notebook, initial_path, return_filename=True)
+
+    # the version is increased by 1
+    with open(filename, 'w') as file:
+        file.write(str(version+1))
+
+    return version+1
