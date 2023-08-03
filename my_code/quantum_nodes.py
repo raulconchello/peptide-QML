@@ -3,8 +3,12 @@ import numpy as np
 
 class parts:
 
+    class part:
+        def __str__(self):
+            return self.__class__.__name__
+
     # Embeddings
-    class Embedding:
+    class Embedding(part):
         def __init__(self, n_qubits):
             self.n_qubits = n_qubits
 
@@ -16,10 +20,12 @@ class parts:
 
 
     # Ansatzes
-    class Ansatz:
+    class Ansatz(part):
         def __init__(self, n_qubits):
             self.n_qubits = n_qubits
             self.weights_shapes = None
+            self.weights_sizes = None
+            self.weights_size = None
 
     class Ansatz_11(Ansatz):
 
@@ -56,26 +62,44 @@ class parts:
                 qml.CNOT(wires=[w, (w+1)])
 
     # Measurements
-    class Measurement:
-        def __init__(self, n_qubits):
-            self.n_qubits = n_qubits
+    class Measurement(part):
 
-    class exp_Z(Measurement):
-        def __init__(self, which_qubit):
+        dict_gate = {
+            'X': qml.PauliX,
+            'Y': qml.PauliY,
+            'Z': qml.PauliZ
+        }
+
+        def __init__(self, gate, which_qubit):
             self.which_qubit = which_qubit
-            self.gate = qml.PauliZ
+            self.str_gate = gate
 
-        def __call__(self, n_qubits):
-            self.n_qubits = n_qubits
+        def __call__(self, n_qubits):       
+            return self.__exp_gate(self.str_gate, self.dict_gate, n_qubits, self.which_qubit)
 
-            if self.which_qubit == 'all':
-                qubits = range(n_qubits)
-            elif type(self.which_qubit) == int:
-                qubits = [self.which_qubit]
-            else:
-                qubits = self.which_qubit
+        class __exp_gate:
+            def __init__(self, str_gate, dict_gate, n_qubits, which_qubit):
+                
+                self.str_gate = str_gate
+                self.gate = dict_gate[str_gate]
+                self.n_qubits = n_qubits
+                self.which_qubit = which_qubit
 
-            return lambda: [qml.expval(self.gate(i)) for i in qubits]
+                if self.which_qubit == 'all':
+                    self.qubits = range(n_qubits)
+                elif type(self.which_qubit) == int:
+                    self.qubits = [self.which_qubit]
+                else:
+                    self.qubits = self.which_qubit
+            
+            def __call__(self):
+                return [qml.expval(self.gate(i)) for i in self.qubits]
+
+            def __str__(self):
+                return f"Measurement('{self.str_gate}', {self.which_qubit})"
+  
+
+        
             
 
 
@@ -88,39 +112,51 @@ class circuit:
             device_options = {'shots': None},
             qnode_options = {'interface': 'torch'},
             embedding = parts.AngleEmbedding, 
-            ansatz = parts.Ansatz_11,
-            measurement = parts.exp_Z(1),
-            n_layers = 10,
+            embedding_ansatz = parts.Ansatz_11,
+            block_ansatz = parts.Ansatz_11,
+            measurement = parts.Measurement('Z', 1),
+            embedding_n_layers = 3,
+            block_n_layers = 10,
             wrapper_qlayer = None,
         ):
 
         # variables
         self.n_qubits = n_qubits
         self.dev = qml.device(device, wires=n_qubits, **device_options)
-        self.n_layers = n_layers
+        self.n_layers = (embedding_n_layers, block_n_layers)
 
         # parts of the circuit
         self.embedding = embedding(n_qubits)
-        self.ansatz = ansatz(n_qubits)
+        self.embedding_ansatz = embedding_ansatz(n_qubits)
+        self.block_ansatz = block_ansatz(n_qubits)
         self.measurement = measurement(n_qubits)
 
+        self.wrapper_qlayer = wrapper_qlayer
+
         # circuit, qnode, and torch_qlayer
-        def circuit(inputs, weights): 
+        def circuit(inputs, embedding_weights, block_weights): 
 
             #split weights into layers
-            weights = np.split(weights, n_layers)
+            embedding_weights = np.split(embedding_weights, embedding_n_layers)
+            block_weights = np.split(block_weights, block_n_layers)
 
-            #embedding           
-            self.embedding(inputs)
+            #embedding   
+            self.embedding(inputs)     
+            for i in range(embedding_n_layers):  
+                self.embedding_ansatz( embedding_weights[i] )
+                self.embedding(inputs)
 
             #block
-            for i in range(n_layers):
-                self.ansatz( weights[i] )
+            for i in range(block_n_layers):
+                self.block_ansatz( block_weights[i] )
 
             #measurement
             return self.measurement()
         
-        self.weights_shape = {'weights': (n_layers*self.ansatz.weights_size,)}
+        self.weights_shape = {
+            'embedding_weights': (embedding_n_layers*self.embedding_ansatz.weights_size,),
+            'block_weights':     (block_n_layers    *self.block_ansatz.weights_size,)
+        }
         
         self.qnode = qml.QNode(func=circuit, device=self.dev, **qnode_options)
         self.torch_qlayer = qml.qnn.TorchLayer(self.qnode, self.weights_shape)
@@ -128,17 +164,34 @@ class circuit:
         if wrapper_qlayer is not None:
             self.torch_qlayer = wrapper_qlayer(self.torch_qlayer)
 
+        self.torch_qlayer.__str__ = self.__str__
+
     def __call__(self):
         return self.torch_qlayer
 
+    def __str__(self):
+        string = "QLayer(\n"
+        string += f'\tn_qubits: {self.n_qubits}\n'
+        string += f'\tembedding: {self.embedding}\n'
+        string += f'\tembedding_ansatz: {self.embedding_ansatz}\n'
+        string += f'\tblock_ansatz: {self.block_ansatz}\n'
+        string += f'\tmeasurement: {self.measurement}\n'
+        string += f'\tembedding_n_layers: {self.n_layers[0]}\n'
+        string += f'\tblock_n_layers: {self.n_layers[1]}\n'
+        string += f'\twrapper_qlayer: {self.wrapper_qlayer.__name__}\n' if self.wrapper_qlayer is not None else 'wrapper_qlayer: None\n'   
+        string += f'\tdevice: \n{self.dev}'.replace('\n', '\n\t\t\t')
+        string += '\n)'
+
+        return string
 
     def draw(self, size=(50,3)):
 
         inputs = [0 for _ in range(self.n_qubits)]
-        weights = np.zeros(self.weights_shape['weights'])
+        embedding_weights = np.zeros(self.weights_shape['embedding_weights'])
+        block_weights = np.zeros(self.weights_shape['block_weights'])
 
         qml.drawer.use_style("black_white")
-        fig, ax = qml.draw_mpl(self.qnode, expansion_strategy="device")(inputs, weights)
+        fig, ax = qml.draw_mpl(self.qnode, expansion_strategy="device")(inputs, embedding_weights, block_weights)
         fig.set_size_inches(size)
 
         
