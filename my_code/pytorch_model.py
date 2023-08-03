@@ -108,7 +108,7 @@ class pytorch_model:
         # keep track of the losses (and parameters)
         self.losses_batches = []
         self.losses_epochs = [loss_function(self.model(input_data), target_data).item()]
-        if self.keep_track_params:  self.parameters = [deepcopy(dict(self.model.state_dict().items()))]
+        if self.keep_track_params:  self.parameters = [deepcopy(self.model.state_dict())]
 
         # validation
         if validation and (input_data_validation is None or target_data_validation is None): #if no validation data is given, we don't do validation
@@ -167,7 +167,7 @@ class pytorch_model:
                 self.losses_epochs[-1] += loss.item() 
 
                 # keep track of the parameters
-                if self.keep_track_params:  self.parameters.append(deepcopy(dict(self.model.state_dict().items())))
+                if self.keep_track_params:  self.parameters.append(deepcopy(self.model.state_dict()))
 
             # divide the epoch loss by the number of batches, to get the average loss
             self.losses_epochs[-1] /= (input_data.size(0)/batch_size)
@@ -228,32 +228,37 @@ class pytorch_model:
 
         plt.show()
 
-    def save_str(self, metadata={}):
+    def plot_losses(self, batches=True, epochs=True, epochs_validation=True, save=False):
+        
+        if batches:
+            plt.figure()
+            plt.plot(self.losses_batches)
+            plt.title('Loss per batch')
+            if save: 
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_losses_batches")
+                plt.savefig(file)
+                print("Saved in: ", file)
+            plt.show()
 
-        filename = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="txt", version=self.version, postfix="_model_str")
+        if epochs:
+            plt.figure()
+            plt.plot(self.losses_epochs)
+            plt.title('Loss per epoch')
+            if save: 
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_losses_epoch")
+                plt.savefig(file)
+                print("Saved in: ", file)
+            plt.show()
 
-        # we save the string of the model
-        with open(filename, 'w') as file:
-
-            # metadata
-            file.write("metadata:\n")
-            for k, v in metadata.items():
-                file.write("\t{}: {}\n".format(k, v))
-
-            # model layers
-            file.write("\n\n\nModel (notebook {}, version {}):\n".format(self.name_notebook, self.version))
-            file.write(str(self.model)+"\n\n\nLayer by layer:\n")
-
-            for i, layer in enumerate(self.model):
-                file.write("# --- " + str(i) + " --- #\n" + layer.__str__() + "\n\n")
-
-            # model training inputs
-            file.write("\nTraining inputs:\n")
-            for k, v in self.training_inputs.items():
-                file.write("\t{}: {}\n".format(k, v))
-
-        print("Saved in: ", filename)
-
+        if epochs_validation:
+            plt.figure()
+            plt.plot(self.losses_epochs_validation)
+            plt.title('Loss per epoch (validation)')
+            if save: 
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_losses_epoch_validation")
+                plt.savefig(file)
+                print("Saved in: ", file)
+            plt.show()
 
     def print_validation(self, save=False, precision=3, percentatge=1):
 
@@ -288,46 +293,64 @@ class pytorch_model:
                 file.write("\n".join(output_lines))
                 print("Saved in: ", save_filename)
 
-    def plot_losses(self, batches=True, epochs=True, epochs_validation=True, save=False):
-        
-        if batches:
-            plt.figure()
-            plt.plot(self.losses_batches)
-            plt.title('Loss per batch')
-            if save: 
-                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_losses_batches")
-                plt.savefig(file)
-                print("Saved in: ", file)
-            plt.show()
+    def save_str(self, metadata={}):
 
-        if epochs:
-            plt.figure()
-            plt.plot(self.losses_epochs)
-            plt.title('Loss per epoch')
-            if save: 
-                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_losses_epoch")
-                plt.savefig(file)
-                print("Saved in: ", file)
-            plt.show()
+        filename = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="txt", version=self.version, postfix="_model_str")
 
-        if epochs_validation:
-            plt.figure()
-            plt.plot(self.losses_epochs_validation)
-            plt.title('Loss per epoch (validation)')
-            if save: 
-                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_losses_epoch_validation")
-                plt.savefig(file)
-                print("Saved in: ", file)
-            plt.show()
+        # we save the string of the model
+        with open(filename, 'w') as file:
 
+            # metadata
+            file.write("metadata:\n")
+            for k, v in metadata.items():
+                file.write("\t{}: {}\n".format(k, v))
 
-    def save_state_dict(self):
+            # model layers
+            file.write("\n\n\nModel (notebook {}, version {}):\n".format(self.name_notebook, self.version))
+            file.write(str(self.model)+"\n\n\nLayer by layer:\n")
+
+            for i, layer in enumerate(self.model):
+                file.write("# --- " + str(i) + " --- #\n" + layer.__str__() + "\n\n")
+
+            # model training inputs
+            file.write("\nTraining inputs:\n")
+            for k, v in self.training_inputs.items():
+                file.write("\t{}: {}\n".format(k, v))
+
+        print("Saved in: ", filename)
+
+    def save_state_dict(self, intermediate=False):
 
         output_filename = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="pth", version=self.version)
 
         torch.save(self.model.state_dict(), output_filename)
 
-        print("Model saved as {}".format(output_filename))
+        if intermediate and self.parameters is not None:
+            # create a folder with the name of the notebook and save all the self.parameters
+            folder = output_filename[:-4]
+            try: #try to create it (if it already exists, it will fail)
+                os.mkdir(folder)
+            except: #if it fails, it means that the folder already exists
+                #remove everything inside the folder
+                for file in os.listdir(folder):
+                    os.remove(folder+'/'+file)
+
+            def numbers_with_zeros(i, x):
+                num_digits = len(str(x))
+                format_string = "{:0" + str(num_digits) + "d}"
+
+                return format_string.format(i)
+            
+            #save all the parameters
+            n_params = len(self.parameters)
+            for i, state_dict in enumerate(self.parameters):
+                
+                torch.save(state_dict, folder+'/state_dict_'+numbers_with_zeros(i, n_params)+'.pth')
+
+            print("Model saved as {} and intermediate parameters saved in {}".format(output_filename, folder))
+
+        else:
+            print("Model saved as {}".format(output_filename))
 
 
     def load_state_dict(self, version=None, initial_path=None, name_notebook=None):

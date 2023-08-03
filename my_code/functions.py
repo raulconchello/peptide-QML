@@ -178,6 +178,9 @@ def get_name_file_to_save(name_notebook, initial_path, extension, version=None, 
         for subfolder in ["models", "plots", "pdfs", "notebooks", "txts", "versions"]:
             os.makedirs(folder + "/" + subfolder)
             print(f"Folder '{folder}/{subfolder}' created successfully.")
+            #create .gitkeep file
+            with open(folder + "/" + subfolder + "/.gitkeep", 'w') as file:
+                pass
 
 
     # check if the file exists and print a message
