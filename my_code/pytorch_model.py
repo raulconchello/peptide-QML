@@ -43,6 +43,7 @@ class pytorch_model:
 
         self.keep_track_params = keep_track_params
         self.parameters = None
+        self.training_inputs = None
 
 
     def __call__(self, *args, **kwds):
@@ -74,6 +75,18 @@ class pytorch_model:
                 time=True
     ):
         
+        self.training_inputs = {
+            'loss_function': loss_function,
+            'optimizer': optimizer,
+            'optimizer_options': optimizer_options,
+            'num_epochs': num_epochs,
+            'batch_size': batch_size,
+            'print_batch': print_batch,
+            'validation': validation,
+            'n_validation': n_validation,
+            'n_print_validation': n_print_validation,
+            'time': time,
+        }
         self.version = f.update_version(self.name_notebook, self.initial_path)
         
         # data
@@ -215,18 +228,29 @@ class pytorch_model:
 
         plt.show()
 
-    def save_str(self, meta={}):
+    def save_str(self, metadata={}):
 
         filename = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="txt", version=self.version, postfix="_model_str")
 
         # we save the string of the model
         with open(filename, 'w') as file:
-            file.write("meta: " + str(meta))
+
+            # metadata
+            file.write("metadata:\n")
+            for k, v in metadata.items():
+                file.write("\t{}: {}\n".format(k, v))
+
+            # model layers
             file.write("\n\n\nModel (notebook {}, version {}):\n".format(self.name_notebook, self.version))
             file.write(str(self.model)+"\n\n\nLayer by layer:\n")
 
             for i, layer in enumerate(self.model):
                 file.write("# --- " + str(i) + " --- #\n" + layer.__str__() + "\n\n")
+
+            # model training inputs
+            file.write("\nTraining inputs:\n")
+            for k, v in self.training_inputs.items():
+                file.write("\t{}: {}\n".format(k, v))
 
         print("Saved in: ", filename)
 
