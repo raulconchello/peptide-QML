@@ -181,6 +181,9 @@ def get_name_file_to_save(name_notebook, initial_path, extension, version=None, 
             #create .gitkeep file
             with open(folder + "/" + subfolder + "/.gitkeep", 'w') as file:
                 pass
+            if subfolder == "versions":
+                with open(folder + "/" + subfolder + "/.gitkeep", 'w') as file:
+                    file.write("0")
 
 
     # check if the file exists and print a message
