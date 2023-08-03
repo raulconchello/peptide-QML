@@ -1,22 +1,22 @@
 Validation Results:
-i: 0, 		 target: -0.0377, 	 output: 0.7332, 	 loss: 20.4728
-i: 1, 		 target: 0.1433, 	 output: 0.7332, 	 loss: 4.1156
-i: 2, 		 target: 0.1515, 	 output: 0.7332, 	 loss: 3.8398
-i: 3, 		 target: -0.0779, 	 output: 0.7332, 	 loss: 10.4136
-i: 4, 		 target: 0.0473, 	 output: 0.7332, 	 loss: 14.4962
-i: 5, 		 target: -0.0939, 	 output: 0.7332, 	 loss: 8.8113
-i: 6, 		 target: 0.2456, 	 output: 0.7332, 	 loss: 1.9854
-i: 7, 		 target: 0.1281, 	 output: 0.7332, 	 loss: 4.7220
-i: 8, 		 target: 0.1955, 	 output: 0.7332, 	 loss: 2.7504
-i: 9, 		 target: 0.1073, 	 output: 0.7332, 	 loss: 5.8336
-i: 10, 		 target: -0.0644, 	 output: 0.7332, 	 loss: 12.3791
-i: 11, 		 target: -0.0442, 	 output: 0.7332, 	 loss: 17.5937
-i: 12, 		 target: -0.0720, 	 output: 0.7332, 	 loss: 11.1874
-i: 13, 		 target: -0.0518, 	 output: 0.7332, 	 loss: 15.1626
-i: 14, 		 target: -0.0441, 	 output: 0.7332, 	 loss: 17.6162
-i: 15, 		 target: 0.2444, 	 output: 0.7332, 	 loss: 1.9993
-i: 16, 		 target: 0.4082, 	 output: 0.7332, 	 loss: 0.7959
-i: 17, 		 target: 0.1986, 	 output: 0.7332, 	 loss: 2.6922
-i: 18, 		 target: 0.0823, 	 output: 0.7332, 	 loss: 7.9055
-i: 19, 		 target: 0.0959, 	 output: 0.7332, 	 loss: 6.6476
-Average loss: 0.1714
+i: 0, 		 target: -0.0662, 	 output: 0.1418, 	 loss: 3.1427
+i: 1, 		 target: 0.1805, 	 output: 0.1418, 	 loss: 0.2145
+i: 2, 		 target: -0.0357, 	 output: 0.1418, 	 loss: 4.9707
+i: 3, 		 target: 0.0385, 	 output: 0.1418, 	 loss: 2.6820
+i: 4, 		 target: -0.0717, 	 output: 0.1418, 	 loss: 2.9777
+i: 5, 		 target: -0.0594, 	 output: 0.1418, 	 loss: 3.3850
+i: 6, 		 target: -0.0711, 	 output: 0.1418, 	 loss: 2.9929
+i: 7, 		 target: -0.0688, 	 output: 0.1418, 	 loss: 3.0590
+i: 8, 		 target: 0.3044, 	 output: 0.1418, 	 loss: 0.5344
+i: 9, 		 target: 0.0461, 	 output: 0.1418, 	 loss: 2.0780
+i: 10, 		 target: 0.2078, 	 output: 0.1418, 	 loss: 0.3180
+i: 11, 		 target: 0.0697, 	 output: 0.1418, 	 loss: 1.0333
+i: 12, 		 target: -0.0814, 	 output: 0.1418, 	 loss: 2.7407
+i: 13, 		 target: 0.1593, 	 output: 0.1418, 	 loss: 0.1103
+i: 14, 		 target: -0.0499, 	 output: 0.1418, 	 loss: 3.8418
+i: 15, 		 target: -0.0617, 	 output: 0.1418, 	 loss: 3.2992
+i: 16, 		 target: -0.0773, 	 output: 0.1418, 	 loss: 2.8329
+i: 17, 		 target: 0.2600, 	 output: 0.1418, 	 loss: 0.4548
+i: 18, 		 target: -0.0994, 	 output: 0.1418, 	 loss: 2.4254
+i: 19, 		 target: -0.0748, 	 output: 0.1418, 	 loss: 2.8956
+Average loss: 0.0460
