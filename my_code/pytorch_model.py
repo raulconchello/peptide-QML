@@ -215,6 +215,21 @@ class pytorch_model:
 
         plt.show()
 
+    def save_str(self, meta={}):
+
+        filename = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="txt", version=self.version, postfix="_model_str")
+
+        # we save the string of the model
+        with open(filename, 'w') as file:
+            file.write("meta: " + str(meta))
+            file.write("\n\n\nModel (notebook {}, version {}):\n".format(self.name_notebook, self.version))
+            file.write(str(self.model)+"\n\n\nLayer by layer:\n")
+
+            for i, layer in enumerate(self.model):
+                file.write("# --- " + str(i) + " --- #\n" + layer.__str__() + "\n\n")
+
+        print("Saved in: ", filename)
+
 
     def print_validation(self, save=False, precision=3, percentatge=1):
 
