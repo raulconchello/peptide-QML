@@ -105,8 +105,6 @@ class pytorch_model:
         loss_function = self.loss_function
         optimizer = self.optimizer
 
-        print(input_data.shape, target_data.shape, input_data_validation.shape, target_data_validation.shape)
-
         # keep track of the losses (and parameters)
         self.losses_batches = []
         self.losses_epochs = [loss_function(self.model(input_data), target_data).item()]
