@@ -116,6 +116,7 @@ class circuit:
             block_ansatz = parts.Ansatz_11,
             measurement = parts.Measurement('Z', 1),
             embedding_n_layers = 3,
+            different_inputs_per_layer = False,
             block_n_layers = 10,
             wrapper_qlayer = None,
         ):
@@ -139,12 +140,19 @@ class circuit:
             #split weights into layers
             embedding_weights = np.split(embedding_weights, embedding_n_layers)
             block_weights = np.split(block_weights, block_n_layers)
-
+            print('here')
             #embedding   
-            self.embedding(inputs)     
-            for i in range(embedding_n_layers):  
-                self.embedding_ansatz( embedding_weights[i] )
-                self.embedding(inputs)
+            if different_inputs_per_layer:
+                print('here1')
+                inputs = np.split(inputs, embedding_n_layers+1)
+                print('here2')
+                self.embedding(inputs[0])     
+                print('here3')
+                for i in range(embedding_n_layers):  
+                    self.embedding_ansatz( embedding_weights[i] )
+                    self.embedding(inputs[i+1])
+            else:
+                self.embedding(inputs)   
 
             #block
             for i in range(block_n_layers):
@@ -177,6 +185,7 @@ class circuit:
         string += f'\tblock_ansatz: {self.block_ansatz}\n'
         string += f'\tmeasurement: {self.measurement}\n'
         string += f'\tembedding_n_layers: {self.n_layers[0]}\n'
+        string += f'\tdifferent_inputs_per_layer: {self.different_inputs_per_layer}\n'
         string += f'\tblock_n_layers: {self.n_layers[1]}\n'
         string += f'\twrapper_qlayer: {self.wrapper_qlayer.__name__}\n' if self.wrapper_qlayer is not None else 'wrapper_qlayer: None\n'   
         string += f'\tdevice: \n{self.dev}'.replace('\n', '\n\t\t\t')
@@ -186,9 +195,13 @@ class circuit:
 
     def draw(self, size=(50,3)):
 
-        inputs = [0 for _ in range(self.n_qubits)]
+        inputs = [0 for _ in range(self.n_qubits)] 
+        if self.n_layers[0] > 0:
+            inputs = [inputs] * (self.n_layers[0]+1)
         embedding_weights = np.zeros(self.weights_shape['embedding_weights'])
         block_weights = np.zeros(self.weights_shape['block_weights'])
+
+        print(inputs)
 
         qml.drawer.use_style("black_white")
         fig, ax = qml.draw_mpl(self.qnode, expansion_strategy="device")(inputs, embedding_weights, block_weights)
