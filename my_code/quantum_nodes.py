@@ -143,11 +143,8 @@ class circuit:
             print('here')
             #embedding   
             if different_inputs_per_layer:
-                print('here1')
                 inputs = np.split(inputs, embedding_n_layers+1)
-                print('here2')
                 self.embedding(inputs[0])     
-                print('here3')
                 for i in range(embedding_n_layers):  
                     self.embedding_ansatz( embedding_weights[i] )
                     self.embedding(inputs[i+1])
