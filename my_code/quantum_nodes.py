@@ -1,6 +1,6 @@
 import pennylane as qml
 import numpy as np
-
+import torch
 class parts:
 
     class part:
@@ -112,7 +112,7 @@ class circuit:
             device_options = {'shots': None},
             qnode_options = {'interface': 'torch'},
             embedding = parts.AngleEmbedding, 
-            embedding_ansatz = parts.Ansatz_11,
+            embedding_ansatz = None,
             block_ansatz = parts.Ansatz_11,
             measurement = parts.Measurement('Z', 1),
             embedding_n_layers = 3,
@@ -124,45 +124,70 @@ class circuit:
         # variables
         self.n_qubits = n_qubits
         self.dev = qml.device(device, wires=n_qubits, **device_options)
+        self.different_inputs_per_layer = different_inputs_per_layer
+
+        embedding_n_layers = embedding_n_layers if not embedding_ansatz is None else 0
         self.n_layers = (embedding_n_layers, block_n_layers)
 
         # parts of the circuit
         self.embedding = embedding(n_qubits)
-        self.embedding_ansatz = embedding_ansatz(n_qubits)
+        self.embedding_ansatz = embedding_ansatz(n_qubits) if not embedding_ansatz is None else None
         self.block_ansatz = block_ansatz(n_qubits)
         self.measurement = measurement(n_qubits)
 
         self.wrapper_qlayer = wrapper_qlayer
 
-        # circuit, qnode, and torch_qlayer
-        def circuit(inputs, embedding_weights, block_weights): 
-
-            #split weights into layers
-            embedding_weights = np.split(embedding_weights, embedding_n_layers)
-            block_weights = np.split(block_weights, block_n_layers)
-            print('here')
+        # circuit
+        self.input_shape = (n_qubits*(1+embedding_n_layers*different_inputs_per_layer),)
+        def _circuit(inputs, block_weights, embedding_weights=None):
+            
             #embedding   
-            if different_inputs_per_layer:
-                inputs = np.split(inputs, embedding_n_layers+1)
-                self.embedding(inputs[0])     
-                for i in range(embedding_n_layers):  
-                    self.embedding_ansatz( embedding_weights[i] )
-                    self.embedding(inputs[i+1])
-            else:
-                self.embedding(inputs)   
+            if embedding_weights is None:                
+                self.embedding(inputs)
 
+            else:            
+                embedding_weights = np.split(embedding_weights, embedding_n_layers)
+
+                if different_inputs_per_layer:
+                    
+                    inputs = np.split(inputs, embedding_n_layers+1, axis=len(inputs.shape)-1)
+                    
+                    self.embedding(inputs[0])     
+                    for i in range(embedding_n_layers):  
+                        self.embedding_ansatz( embedding_weights[i] )
+                        self.embedding(inputs[i+1])
+                else:
+                    self.embedding(inputs)   
+                    for i in range(embedding_n_layers):  
+                        self.embedding_ansatz( embedding_weights[i] )
+                        self.embedding(inputs)
+            
             #block
+            block_weights = np.split(block_weights, block_n_layers)
             for i in range(block_n_layers):
                 self.block_ansatz( block_weights[i] )
 
             #measurement
             return self.measurement()
+
+        if embedding_n_layers==0:
+            def circuit(inputs, block_weights): 
+                return _circuit(inputs, block_weights)
+            
+            self.weights_shape = {
+                'block_weights':     (block_n_layers    *self.block_ansatz.weights_size,)
+            }
+
+        else:
+            def circuit(inputs, embedding_weights, block_weights):
+                return _circuit(inputs, block_weights, embedding_weights)
+            
+            self.weights_shape = {
+                'embedding_weights': (embedding_n_layers*self.embedding_ansatz.weights_size,),
+                'block_weights':     (block_n_layers    *self.block_ansatz.weights_size,)
+            }
         
-        self.weights_shape = {
-            'embedding_weights': (embedding_n_layers*self.embedding_ansatz.weights_size,),
-            'block_weights':     (block_n_layers    *self.block_ansatz.weights_size,)
-        }
-        
+        # qnode, and torch_qlayer
         self.qnode = qml.QNode(func=circuit, device=self.dev, **qnode_options)
         self.torch_qlayer = qml.qnn.TorchLayer(self.qnode, self.weights_shape)
 
@@ -192,16 +217,15 @@ class circuit:
 
     def draw(self, size=(50,3)):
 
-        inputs = [0 for _ in range(self.n_qubits)] 
-        if self.n_layers[0] > 0:
-            inputs = [inputs] * (self.n_layers[0]+1)
-        embedding_weights = np.zeros(self.weights_shape['embedding_weights'])
-        block_weights = np.zeros(self.weights_shape['block_weights'])
+        inputs = np.array([0 for _ in range(self.input_shape[0])])
 
-        print(inputs)
+        if self.n_layers[0] == 0:        
+            weights = np.zeros(self.weights_shape['block_weights']), 
+        else:
+            weights = np.zeros(self.weights_shape['embedding_weights']), np.zeros(self.weights_shape['block_weights'])
 
         qml.drawer.use_style("black_white")
-        fig, ax = qml.draw_mpl(self.qnode, expansion_strategy="device")(inputs, embedding_weights, block_weights)
+        fig, ax = qml.draw_mpl(self.qnode, expansion_strategy="device")(inputs, *weights)
         fig.set_size_inches(size)
 
         
