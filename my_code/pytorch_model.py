@@ -298,7 +298,7 @@ class pytorch_model:
 
                 # save
                 self.avg_loss_validation += loss/len(self.data_Y_validation)
-                self.targets_validation.append(t.item())
+                self.targets_validation.append(y.item())
                 self.predictions_validation.append(prediction.item())
                 self.losses_validation.append(loss.item())
 
