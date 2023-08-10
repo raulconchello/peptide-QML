@@ -286,15 +286,15 @@ class pytorch_model:
             start_time = t.time()
 
             # compute validation and save
-            for i, (p, t) in enumerate(zip(data_X_validation, data_Y_validation)):
+            for i, (x, y) in enumerate(zip(data_X_validation, data_Y_validation)):
 
                 # print progress
                 print("Progress: {:.2f}%".format(100*(i+1)/len_data), end="\n")
                 print("It will end in {:.2f} minutes".format((len_data-i+1)*(t.time()-start_time)/(i+1)/60), end="\r")
 
                 # compute
-                prediction = self.model(p)
-                loss = self.loss_function(prediction, t)
+                prediction = self.model(x)
+                loss = self.loss_function(prediction, y)
 
                 # save
                 self.avg_loss_validation += loss/len(self.data_Y_validation)
