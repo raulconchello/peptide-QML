@@ -264,7 +264,7 @@ class pytorch_model:
     def _compute_validation(self, percentatge=1):
 
         # if we have a new version or a new percentatge compute the validation
-        if getattr(self, 'last_validation_computed', 0) != self.version and getattr(self, 'last_validation_percentatge', 0) != percentatge:
+        if getattr(self, 'last_validation_computed', 0) != self.version or getattr(self, 'last_validation_percentatge', 0) != percentatge:
 
             # save the version and the percentatge
             self.last_validation_computed = self.version
@@ -312,7 +312,7 @@ class pytorch_model:
             file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_validation")
             plt.savefig(file)
             print("Saved in: ", file)
-            
+
         plt.show()
 
 
