@@ -5,6 +5,7 @@ import time as t
 import matplotlib.pyplot as plt
 import os
 from copy import deepcopy
+import numpy as np
 
 from . import functions as f
 
@@ -72,7 +73,7 @@ class pytorch_model:
                 n_validation = 10,
                 n_print_validation = 3,
                 # Time
-                time=True
+                time = True
     ):
         
         self.training_inputs = {
@@ -260,16 +261,68 @@ class pytorch_model:
                 print("Saved in: ", file)
             plt.show()
 
+    def _compute_validation(self, percentatge=1):
+
+        # if we have a new version or a new percentatge compute the validation
+        if getattr(self, 'last_validation_computed', 0) != self.version and getattr(self, 'last_validation_percentatge', 0) != percentatge:
+
+            # save the version and the percentatge
+            self.last_validation_computed = self.version
+            self.last_validation_percentatge = percentatge
+
+            # data cut with percentatge
+            data_X_validation = self.data_X_validation[:int(len(self.data_X_validation)*percentatge)]
+            data_Y_validation = self.data_Y_validation[:int(len(self.data_Y_validation)*percentatge)]
+
+            # varaibles
+            self.avg_loss_validation = 0
+            self.targets_validation = []
+            self.predictions_validation = []
+            self.losses_validation = []
+            self
+
+            # compute validation and save
+            for i, t in zip((data_X_validation), data_Y_validation):
+
+                # compute
+                prediction = self.model(i)
+                loss = self.loss_function(prediction, t)
+
+                # save
+                self.avg_loss_validation += loss/len(self.data_Y_validation)
+                self.targets_validation.append(t.item())
+                self.predictions_validation.append(prediction.item())
+                self.losses_validation.append(loss.item())
+
+        return np.array(self.targets_validation), np.array(self.predictions_validation), np.array(self.losses_validation), self.avg_loss_validation
+
+    def plot_validation(self, save=False, fig_size=(6, 6)):
+
+        y_test, y_pred, losses, avg_loss = self._compute_validation()
+
+        plt.figure(figsize=fig_size)
+        plt.scatter(y_test, y_pred, color='r', label='Actual vs. Predicted', alpha=0.1)
+        plt.plot([np.min(y_test), np.max(y_test)], [np.min(y_test), np.max(y_test)], 'k--', lw=2, label='1:1 Line')
+        plt.xlabel('True Values')
+        plt.ylabel('Predictions')
+        plt.title('Predictions vs. True Values (average loss: {:.4f})'.format(avg_loss))
+        plt.legend()
+
+        if save: 
+            file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_validation")
+            plt.savefig(file)
+            print("Saved in: ", file)
+            
+        plt.show()
+
+
     def print_validation(self, save=False, precision=3, percentatge=1):
 
-        # data cut with percentatge
-        data_X_validation = self.data_X_validation[:int(len(self.data_X_validation)*percentatge)]
-        data_Y_validation = self.data_Y_validation[:int(len(self.data_Y_validation)*percentatge)]
+        y_test, y_pred, losses, avg_loss = self._compute_validation(percentatge=percentatge)
 
         # varaibles
-        avg_loss = 0
         output_lines = []
-        format_string = 'i: {}, \t\t target: {:.%df}, \t output: {:.%df}, \t loss: {:.%df}' % (precision, precision, precision)
+        format_string = 'i: {}, \t\t target: {:.%df}, \t prediction: {:.%df}, \t loss: {:.%df}' % (precision, precision, precision)
 
         # function to print and save
         def output(string):
@@ -277,11 +330,8 @@ class pytorch_model:
             print(string)
 
         # print and save in variables
-        for x, (i, t) in enumerate(zip((data_X_validation), data_Y_validation)):
-            outputs = self.model(i)
-            loss = self.loss_function(outputs, t)
-            avg_loss += loss/len(self.data_Y_validation)
-            output(format_string.format(x, t.item(), outputs.item(), loss))
+        for x, (t, p, l) in enumerate(zip((y_test), y_pred, losses)):
+            output(format_string.format(x, t, p, l))
 
         output('Average loss: {:.{}f}'.format(avg_loss, precision))
 
