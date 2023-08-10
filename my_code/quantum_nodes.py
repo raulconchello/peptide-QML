@@ -115,7 +115,7 @@ class circuit:
             embedding_ansatz = None,
             block_ansatz = parts.Ansatz_11,
             measurement = parts.Measurement('Z', 1),
-            embedding_n_layers = 3,
+            embedding_n_layers = 0,
             different_inputs_per_layer = False,
             block_n_layers = 10,
             wrapper_qlayer = None,
