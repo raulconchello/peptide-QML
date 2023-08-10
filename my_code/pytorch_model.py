@@ -281,13 +281,16 @@ class pytorch_model:
             self.predictions_validation = []
             self.losses_validation = []
             
+            # variables for printing progress
             len_data = len(data_X_validation)
+            start_time = t.time()
 
             # compute validation and save
             for i, (p, t) in enumerate(zip(data_X_validation, data_Y_validation)):
 
                 # print progress
-                print("\rProgress: {:.2f}%".format(100*(i+1)/len_data), end="")
+                print("Progress: {:.2f}%".format(100*(i+1)/len_data), end="\n")
+                print("It will end in {:.2f} minutes".format((len_data-i+1)*(t.time()-start_time)/(i+1)/60), end="\r")
 
                 # compute
                 prediction = self.model(p)
