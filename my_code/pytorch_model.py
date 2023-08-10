@@ -271,21 +271,26 @@ class pytorch_model:
             self.last_validation_percentatge = percentatge
 
             # data cut with percentatge
-            data_X_validation = self.data_X_validation[:int(len(self.data_X_validation)*percentatge)]
-            data_Y_validation = self.data_Y_validation[:int(len(self.data_Y_validation)*percentatge)]
+            if percentatge < 1:
+                data_X_validation = self.data_X_validation[:int(len(self.data_X_validation)*percentatge)]
+                data_Y_validation = self.data_Y_validation[:int(len(self.data_Y_validation)*percentatge)]
 
             # varaibles
             self.avg_loss_validation = 0
             self.targets_validation = []
             self.predictions_validation = []
             self.losses_validation = []
-            self
+            
+            len_data = len(data_X_validation)
 
             # compute validation and save
-            for i, t in zip((data_X_validation), data_Y_validation):
+            for i, (p, t) in enumerate(zip(data_X_validation, data_Y_validation)):
+
+                # print progress
+                print("\rProgress: {:.2f}%".format(100*(i+1)/len_data), end="")
 
                 # compute
-                prediction = self.model(i)
+                prediction = self.model(p)
                 loss = self.loss_function(prediction, t)
 
                 # save
@@ -296,9 +301,9 @@ class pytorch_model:
 
         return np.array(self.targets_validation), np.array(self.predictions_validation), np.array(self.losses_validation), self.avg_loss_validation
 
-    def plot_validation(self, save=False, fig_size=(6, 6)):
+    def plot_validation(self, save=False, percentatge=1, fig_size=(6, 6)):
 
-        y_test, y_pred, losses, avg_loss = self._compute_validation()
+        y_test, y_pred, losses, avg_loss = self._compute_validation(percentatge=percentatge)
 
         plt.figure(figsize=fig_size)
         plt.scatter(y_test, y_pred, color='r', label='Actual vs. Predicted', alpha=0.1)
