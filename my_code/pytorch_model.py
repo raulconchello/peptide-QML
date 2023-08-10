@@ -284,6 +284,9 @@ class pytorch_model:
             if percentatge < 1:
                 data_X_validation = self.data_X_validation[:int(len(self.data_X_validation)*percentatge)]
                 data_Y_validation = self.data_Y_validation[:int(len(self.data_Y_validation)*percentatge)]
+            else:
+                data_X_validation = self.data_X_validation
+                data_Y_validation = self.data_Y_validation
 
             # varaibles
             self.avg_loss_validation = 0
