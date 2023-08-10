@@ -64,7 +64,9 @@ class pytorch_model:
                 loss_function = RelativeMSELoss,  
                 optimizer = optim.SGD,
                 optimizer_options = {'lr': 0.05},
-                # Training loop
+                # initial parameters
+                initialization_options = [{}],
+                # training loop
                 num_epochs = 25,
                 batch_size = 32,
                 print_batch = True,
@@ -80,6 +82,7 @@ class pytorch_model:
             'loss_function': loss_function,
             'optimizer': optimizer,
             'optimizer_options': optimizer_options,
+            'initialization_options': initialization_options,
             'num_epochs': num_epochs,
             'batch_size': batch_size,
             'print_batch': print_batch,
@@ -89,6 +92,10 @@ class pytorch_model:
             'time': time,
         }
         self.version = f.update_version(self.name_notebook, self.initial_path)
+
+        # initialization
+        for io in initialization_options:
+            if io: self._initialize(**io) # if the dict 'io' is not empty, we initialize the parameters chosen with the options in 'io'
         
         # data
         input_data = self.data_X
@@ -204,6 +211,9 @@ class pytorch_model:
             else:
                 # Print the loss for this epoch
                 print('Epoch [{}/{}], Loss: {:.4f}, Loss validation: {:.4f}'.format(epoch+1, num_epochs, self.losses_epochs[-1], self.losses_epochs_validation[-1]))
+    
+    def _initialize(self, type, layer, name, options):
+        getattr(nn.init, type)(getattr(self.model[layer], name), **options)
 
     def plot_parameter(self, layer, index=None, save=False):
 
@@ -218,7 +228,7 @@ class pytorch_model:
 
         plt.figure()
         plt.plot(parameter_evolution)
-        plt.xlabel('Epoch')
+        plt.xlabel('Batch')
         plt.ylabel('Parameter value')
         plt.title('Parameter ({}, {})'.format(layer, index))
 
@@ -425,5 +435,7 @@ class pytorch_model:
             return
 
         self.model.load_state_dict(torch.load(input_filename))
+
+        self.version = version
 
         print("Model loaded from {}".format(input_filename))
