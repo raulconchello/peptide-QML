@@ -289,7 +289,7 @@ class pytorch_model:
             for i, (x, y) in enumerate(zip(data_X_validation, data_Y_validation)):
 
                 # print progress
-                print("Progress: {:.2f}% \n It will end in {:.2f} minutes".format(
+                print("Progress: {:.2f}%. \t\t\t Ending in {:.2f} minutes".format(
                     100*(i+1)/len_data, (len_data-i+1)*(t.time()-start_time)/(i+1)/60), end="\r")
 
                 # compute
