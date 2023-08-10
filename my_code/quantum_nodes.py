@@ -31,35 +31,70 @@ class parts:
 
         def __init__(self, n_qubits):
             super().__init__(n_qubits)
-            self.weights_shapes = [(n_qubits, 2), (n_qubits//2, 2)]
+            self.weights_shapes = [(n_qubits, 2), (n_qubits-2, 2)]
             self.weights_sizes = [np.product(shape) for shape in self.weights_shapes]
             self.weights_size = np.sum(self.weights_sizes)
     
         def __call__(self, weights):
 
             # split weights
-            weights_1 = weights[:self.weights_sizes[0]].reshape(self.weights_shapes[0])
-            weights_2 = weights[self.weights_sizes[0]:].reshape(self.weights_shapes[1])
+            w = []
+            w.append(weights[:self.weights_sizes[0]].reshape(self.weights_shapes[0]))
+            w.append(weights[self.weights_sizes[0]:].reshape(self.weights_shapes[1]))
 
             # number of qubits
             n_qubits = self.n_qubits
             
-            # rotations for each qubit
-            for j in range(n_qubits):
-                qml.RY(weights_1[j,0], wires=j)
-                qml.RZ(weights_1[j,1], wires=j)
+            # apply roations and CNOTs to each pair of qubits
+            for i in [0,1]:
+                for j in range(i, n_qubits-i, 2): 
 
-            # ZZ rotation for neighboring qubits         
-            for j in range(0,n_qubits,2): 
-                qml.CNOT(wires=[j, (j+1)])
+                    pair = [j, j+1]
 
-            # rotations for some qubits
-            for j, w in enumerate(range(1, n_qubits, 4)): 
-                qml.RY(weights_2[j,0], wires=w)
-                qml.RZ(weights_2[j,1], wires=w)
-                qml.RY(weights_2[j+1,0], wires=w+1)
-                qml.RZ(weights_2[j+1,1], wires=w+1)
-                qml.CNOT(wires=[w, (w+1)])
+                    # rotations for each qubit
+                    for k in pair:
+                        qml.RY(w[i][k-i,0], wires=k)
+                        qml.RZ(w[i][k-i,1], wires=k)
+
+                    # ZZ rotation for pair       
+                    qml.CNOT(wires=pair)
+
+
+    class Ansatz_final_11(Ansatz):
+
+        def __init__(self, n_qubits):
+            super().__init__(n_qubits)
+            self.weights_shapes = [(n_qubits-x, 2) for x in range(0, n_qubits, 2)]
+            self.weights_sizes = [np.product(shape) for shape in self.weights_shapes]
+            self.weights_size = np.sum(self.weights_sizes)
+    
+        def __call__(self, weights):
+
+            # split weights
+            w = []
+            for i in range(len(self.weights_sizes)):
+                w.append(weights[:self.weights_sizes[i]].reshape(self.weights_shapes[i]))
+                weights = weights[self.weights_sizes[i]:]
+
+            # number of qubits
+            n_qubits = self.n_qubits
+
+            # apply roations and CNOTs to each pair of qubits
+            a, b = 0, n_qubits
+            while a < b:
+
+                for j in range(a, b, 2):
+
+                    # rotations for each qubit
+                    qml.RY(w[a][j-a,0], wires=j)
+                    qml.RZ(w[a][j-a,1], wires=j)
+                    qml.RY(w[a][j-a+1,0], wires=j+1)
+                    qml.RZ(w[a][j-a+1,1], wires=j+1)
+
+                    # ZZ rotation for neighboring qubits  
+                    qml.CNOT(wires=[j, (j+1)])
+
+                a, b = a+1, b-1
 
     # Measurements
     class Measurement(part):
@@ -114,6 +149,7 @@ class circuit:
             embedding = parts.AngleEmbedding, 
             embedding_ansatz = None,
             block_ansatz = parts.Ansatz_11,
+            final_ansatz = parts.Ansatz_final_11,
             measurement = parts.Measurement('Z', 1),
             embedding_n_layers = 0,
             different_inputs_per_layer = False,
@@ -133,13 +169,14 @@ class circuit:
         self.embedding = embedding(n_qubits)
         self.embedding_ansatz = embedding_ansatz(n_qubits) if not embedding_ansatz is None else None
         self.block_ansatz = block_ansatz(n_qubits)
+        self.final_ansatz = final_ansatz(n_qubits) if not final_ansatz is None else block_ansatz(n_qubits)
         self.measurement = measurement(n_qubits)
 
         self.wrapper_qlayer = wrapper_qlayer
 
         # circuit
         self.input_shape = (n_qubits*(1+embedding_n_layers*different_inputs_per_layer),)
-        def _circuit(inputs, block_weights, embedding_weights=None):
+        def _circuit(inputs, block_weights, final_weights, embedding_weights=None):
             
             #embedding   
             if embedding_weights is None:                
@@ -166,25 +203,28 @@ class circuit:
             block_weights = np.split(block_weights, block_n_layers)
             for i in range(block_n_layers):
                 self.block_ansatz( block_weights[i] )
+            self.final_ansatz( final_weights )
 
             #measurement
             return self.measurement()
 
         if embedding_n_layers==0:
-            def circuit(inputs, block_weights): 
-                return _circuit(inputs, block_weights)
+            def circuit(inputs, block_weights, final_weights): 
+                return _circuit(inputs, block_weights, final_weights)
             
             self.weights_shape = {
-                'block_weights':     (block_n_layers    *self.block_ansatz.weights_size,)
+                'block_weights': (block_n_layers*self.block_ansatz.weights_size,),
+                'final_weights': (self.final_ansatz.weights_size,)
             }
 
         else:
-            def circuit(inputs, embedding_weights, block_weights):
-                return _circuit(inputs, block_weights, embedding_weights)
+            def circuit(inputs, embedding_weights, block_weights, final_weights):
+                return _circuit(inputs, block_weights, embedding_weights, final_weights)
             
             self.weights_shape = {
                 'embedding_weights': (embedding_n_layers*self.embedding_ansatz.weights_size,),
-                'block_weights':     (block_n_layers    *self.block_ansatz.weights_size,)
+                'block_weights': (block_n_layers*self.block_ansatz.weights_size,),
+                'final_weights': (self.final_ansatz.weights_size,)
             }
         
         # qnode, and torch_qlayer
@@ -218,11 +258,7 @@ class circuit:
     def draw(self, size=(50,3)):
 
         inputs = np.array([0 for _ in range(self.input_shape[0])])
-
-        if self.n_layers[0] == 0:        
-            weights = np.zeros(self.weights_shape['block_weights']), 
-        else:
-            weights = np.zeros(self.weights_shape['embedding_weights']), np.zeros(self.weights_shape['block_weights'])
+        weights = tuple(np.arange(shape[0]) for shape in self.weights_shape.values())
 
         qml.drawer.use_style("black_white")
         fig, ax = qml.draw_mpl(self.qnode, expansion_strategy="device")(inputs, *weights)
