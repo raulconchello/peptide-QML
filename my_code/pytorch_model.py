@@ -219,25 +219,28 @@ class pytorch_model:
 
         parameter_evolution = []
 
-        if index is None:
-            for i in range(len(self.parameters)):
-                parameter_evolution.append(torch.mean(self.parameters[i][layer]).item())
+        if self.parameters is None:
+            print("No parameters saved, so no plot can be made. Please set keep_track_params=True when initializing the model or do model.keep_track_params = True.")
         else:
-            for i in range(len(self.parameters)):
-                parameter_evolution.append(self.parameters[i][layer][index].item())
+            if index is None:
+                for i in range(len(self.parameters)):
+                    parameter_evolution.append(torch.mean(self.parameters[i][layer]).item())
+            else:
+                for i in range(len(self.parameters)):
+                    parameter_evolution.append(self.parameters[i][layer][index].item())
 
-        plt.figure()
-        plt.plot(parameter_evolution)
-        plt.xlabel('Batch')
-        plt.ylabel('Parameter value')
-        plt.title('Parameter ({}, {})'.format(layer, index))
+            plt.figure()
+            plt.plot(parameter_evolution)
+            plt.xlabel('Batch')
+            plt.ylabel('Parameter value')
+            plt.title('Parameter ({}, {})'.format(layer, index))
 
-        if save:
-            file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix= "_parameter_{}_{}".format(layer, index))
-            plt.savefig(file)
-            print("Saved in: ", file)
+            if save:
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix= "_parameter_{}_{}".format(layer, index))
+                plt.savefig(file)
+                print("Saved in: ", file)
 
-        plt.show()
+            plt.show()
 
     def plot_losses(self, batches=True, epochs=True, epochs_validation=True, save=False):
         
