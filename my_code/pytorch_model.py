@@ -5,6 +5,7 @@ import time as t
 import matplotlib.pyplot as plt
 import os
 from copy import deepcopy
+import numpy as np
 
 from . import functions as f
 
@@ -63,7 +64,9 @@ class pytorch_model:
                 loss_function = RelativeMSELoss,  
                 optimizer = optim.SGD,
                 optimizer_options = {'lr': 0.05},
-                # Training loop
+                # initial parameters
+                initialization_options = [{}],
+                # training loop
                 num_epochs = 25,
                 batch_size = 32,
                 print_batch = True,
@@ -72,13 +75,14 @@ class pytorch_model:
                 n_validation = 10,
                 n_print_validation = 3,
                 # Time
-                time=True
+                time = True
     ):
         
         self.training_inputs = {
             'loss_function': loss_function,
             'optimizer': optimizer,
             'optimizer_options': optimizer_options,
+            'initialization_options': initialization_options,
             'num_epochs': num_epochs,
             'batch_size': batch_size,
             'print_batch': print_batch,
@@ -88,6 +92,10 @@ class pytorch_model:
             'time': time,
         }
         self.version = f.update_version(self.name_notebook, self.initial_path)
+
+        # initialization
+        for io in initialization_options:
+            if io: self._initialize(**io) # if the dict 'io' is not empty, we initialize the parameters chosen with the options in 'io'
         
         # data
         input_data = self.data_X
@@ -203,30 +211,36 @@ class pytorch_model:
             else:
                 # Print the loss for this epoch
                 print('Epoch [{}/{}], Loss: {:.4f}, Loss validation: {:.4f}'.format(epoch+1, num_epochs, self.losses_epochs[-1], self.losses_epochs_validation[-1]))
+    
+    def _initialize(self, type, layer, name, options):
+        getattr(nn.init, type)(getattr(self.model[layer], name), **options)
 
     def plot_parameter(self, layer, index=None, save=False):
 
         parameter_evolution = []
 
-        if index is None:
-            for i in range(len(self.parameters)):
-                parameter_evolution.append(torch.mean(self.parameters[i][layer]).item())
+        if self.parameters is None:
+            print("No parameters saved, so no plot can be made. Please set keep_track_params=True when initializing the model or do model.keep_track_params = True.")
         else:
-            for i in range(len(self.parameters)):
-                parameter_evolution.append(self.parameters[i][layer][index].item())
+            if index is None:
+                for i in range(len(self.parameters)):
+                    parameter_evolution.append(torch.mean(self.parameters[i][layer]).item())
+            else:
+                for i in range(len(self.parameters)):
+                    parameter_evolution.append(self.parameters[i][layer][index].item())
 
-        plt.figure()
-        plt.plot(parameter_evolution)
-        plt.xlabel('Epoch')
-        plt.ylabel('Parameter value')
-        plt.title('Parameter ({}, {})'.format(layer, index))
+            plt.figure()
+            plt.plot(parameter_evolution)
+            plt.xlabel('Batch')
+            plt.ylabel('Parameter value')
+            plt.title('Parameter ({}, {})'.format(layer, index))
 
-        if save:
-            file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix= "_parameter_{}_{}".format(layer, index))
-            plt.savefig(file)
-            print("Saved in: ", file)
+            if save:
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix= "_parameter_{}_{}".format(layer, index))
+                plt.savefig(file)
+                print("Saved in: ", file)
 
-        plt.show()
+            plt.show()
 
     def plot_losses(self, batches=True, epochs=True, epochs_validation=True, save=False):
         
@@ -260,16 +274,79 @@ class pytorch_model:
                 print("Saved in: ", file)
             plt.show()
 
+    def _compute_validation(self, percentatge=1):
+
+        # if we have a new version or a new percentatge compute the validation
+        if getattr(self, 'last_validation_computed', 0) != self.version or getattr(self, 'last_validation_percentatge', 0) != percentatge:
+
+            # save the version and the percentatge
+            self.last_validation_computed = self.version
+            self.last_validation_percentatge = percentatge
+
+            # data cut with percentatge
+            if percentatge < 1:
+                data_X_validation = self.data_X_validation[:int(len(self.data_X_validation)*percentatge)]
+                data_Y_validation = self.data_Y_validation[:int(len(self.data_Y_validation)*percentatge)]
+            else:
+                data_X_validation = self.data_X_validation
+                data_Y_validation = self.data_Y_validation
+
+            # varaibles
+            self.avg_loss_validation = 0
+            self.targets_validation = []
+            self.predictions_validation = []
+            self.losses_validation = []
+            
+            # variables for printing progress
+            len_data = len(data_X_validation)
+            start_time = t.time()
+
+            # compute validation and save
+            for i, (x, y) in enumerate(zip(data_X_validation, data_Y_validation)):
+
+                # print progress
+                print("Progress: {:.2f}%. \t\t\t Ending in {:.2f} minutes".format(
+                    100*(i+1)/len_data, (len_data-i+1)*(t.time()-start_time)/(i+1)/60), end="\r")
+
+                # compute
+                prediction = self.model(x)
+                loss = self.loss_function(prediction, y)
+
+                # save
+                self.avg_loss_validation += loss/len(self.data_Y_validation)
+                self.targets_validation.append(y.item())
+                self.predictions_validation.append(prediction.item())
+                self.losses_validation.append(loss.item())
+
+        return np.array(self.targets_validation), np.array(self.predictions_validation), np.array(self.losses_validation), self.avg_loss_validation
+
+    def plot_validation(self, save=False, percentatge=1, fig_size=(6, 6)):
+
+        y_test, y_pred, losses, avg_loss = self._compute_validation(percentatge=percentatge)
+
+        plt.figure(figsize=fig_size)
+        plt.scatter(y_test, y_pred, color='r', label='Actual vs. Predicted', alpha=0.1)
+        plt.plot([np.min(y_test), np.max(y_test)], [np.min(y_test), np.max(y_test)], 'k--', lw=2, label='1:1 Line')
+        plt.xlabel('True Values')
+        plt.ylabel('Predictions')
+        plt.title('Predictions vs. True Values (average loss: {:.4f})'.format(avg_loss))
+        plt.legend()
+
+        if save: 
+            file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_validation")
+            plt.savefig(file)
+            print("Saved in: ", file)
+
+        plt.show()
+
+
     def print_validation(self, save=False, precision=3, percentatge=1):
 
-        # data cut with percentatge
-        data_X_validation = self.data_X_validation[:int(len(self.data_X_validation)*percentatge)]
-        data_Y_validation = self.data_Y_validation[:int(len(self.data_Y_validation)*percentatge)]
+        y_test, y_pred, losses, avg_loss = self._compute_validation(percentatge=percentatge)
 
         # varaibles
-        avg_loss = 0
         output_lines = []
-        format_string = 'i: {}, \t\t target: {:.%df}, \t output: {:.%df}, \t loss: {:.%df}' % (precision, precision, precision)
+        format_string = 'i: {}, \t\t target: {:.%df}, \t prediction: {:.%df}, \t loss: {:.%df}' % (precision, precision, precision)
 
         # function to print and save
         def output(string):
@@ -277,11 +354,8 @@ class pytorch_model:
             print(string)
 
         # print and save in variables
-        for x, (i, t) in enumerate(zip((data_X_validation), data_Y_validation)):
-            outputs = self.model(i)
-            loss = self.loss_function(outputs, t)
-            avg_loss += loss/len(self.data_Y_validation)
-            output(format_string.format(x, t.item(), outputs.item(), loss))
+        for x, (t, p, l) in enumerate(zip((y_test), y_pred, losses)):
+            output(format_string.format(x, t, p, l))
 
         output('Average loss: {:.{}f}'.format(avg_loss, precision))
 
@@ -367,5 +441,7 @@ class pytorch_model:
             return
 
         self.model.load_state_dict(torch.load(input_filename))
+
+        self.version = version
 
         print("Model loaded from {}".format(input_filename))
