@@ -214,9 +214,35 @@ class pytorch_model:
 
 
             # Stop training if the loss is not changing
-            if self.should_stop_training(self.losses_epochs, lookback_epochs=5, threshold=0.001):
+            if self.should_stop_training(self.losses_epochs, 5, ):
                 print('The loss is not changing anymore, so we stop training.')
                 break
+
+    def should_stop_training(self, losses, lookback_epochs=5, threshold=0.001):
+        """
+        Determines if training should stop based on the standard deviation of the last `lookback_epochs` losses.
+        
+        Parameters:
+        - losses (list): List of loss values, where the most recent loss is the last element.
+        - lookback_epochs (int): Number of recent epochs to consider.
+        - threshold (float): Standard deviation threshold to determine if training should stop.
+        
+        Returns:
+        - bool: True if training should stop, False otherwise.
+        """
+        
+        # If there aren't enough epochs yet, continue training
+        if len(losses) < lookback_epochs:
+            return False
+        
+        # Extract the last `lookback_epochs` losses
+        recent_losses = losses[-lookback_epochs:]
+        
+        # Calculate the standard deviation of the recent losses
+        std_dev = sum([(x - sum(recent_losses) / lookback_epochs) ** 2 for x in recent_losses]) ** 0.5 / lookback_epochs
+        
+        # If the standard deviation is below the threshold, stop the training
+        return std_dev < threshold
     
     def _initialize(self, type, layer, name, options):
         getattr(nn.init, type)(getattr(self.model[layer], name), **options)
@@ -453,28 +479,4 @@ class pytorch_model:
         print("Model loaded from {}".format(input_filename))
 
 
-    def should_stop_training(losses, lookback_epochs=5, threshold=0.001):
-        """
-        Determines if training should stop based on the standard deviation of the last `lookback_epochs` losses.
-        
-        Parameters:
-        - losses (list): List of loss values, where the most recent loss is the last element.
-        - lookback_epochs (int): Number of recent epochs to consider.
-        - threshold (float): Standard deviation threshold to determine if training should stop.
-        
-        Returns:
-        - bool: True if training should stop, False otherwise.
-        """
-        
-        # If there aren't enough epochs yet, continue training
-        if len(losses) < lookback_epochs:
-            return False
-        
-        # Extract the last `lookback_epochs` losses
-        recent_losses = losses[-lookback_epochs:]
-        
-        # Calculate the standard deviation of the recent losses
-        std_dev = sum([(x - sum(recent_losses) / lookback_epochs) ** 2 for x in recent_losses]) ** 0.5 / lookback_epochs
-        
-        # If the standard deviation is below the threshold, stop the training
-        return std_dev < threshold
+    
