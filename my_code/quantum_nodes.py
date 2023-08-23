@@ -27,6 +27,13 @@ class parts:
             self.weights_sizes = None
             self.weights_size = None
 
+        def _split_weights(self, weights):
+            w = []
+            for i in range(len(self.weights_sizes)):
+                w.append(weights[:self.weights_sizes[i]].reshape(self.weights_shapes[i]))
+                weights = weights[self.weights_sizes[i]:]
+            return w
+
     class Ansatz_11(Ansatz):
 
         def __init__(self, n_qubits):
@@ -38,9 +45,7 @@ class parts:
         def __call__(self, weights):
 
             # split weights
-            w = []
-            w.append(weights[:self.weights_sizes[0]].reshape(self.weights_shapes[0]))
-            w.append(weights[self.weights_sizes[0]:].reshape(self.weights_shapes[1]))
+            w = self._split_weights(weights)
 
             # number of qubits
             n_qubits = self.n_qubits
@@ -59,6 +64,49 @@ class parts:
                     # ZZ rotation for pair       
                     qml.CNOT(wires=pair)
 
+    class Ansatz_X(Ansatz):
+
+        def __init__(self, n_qubits):
+            super().__init__(n_qubits)
+            self.weights_shapes = [(n_qubits, 2), (n_qubits-2, 2), (2, 2)]
+            self.weights_sizes = [np.product(shape) for shape in self.weights_shapes]
+            self.weights_size = np.sum(self.weights_sizes)
+    
+        def __call__(self, weights):
+
+            # split weights
+            w = self._split_weights(weights)
+
+            # number of qubits
+            n_qubits = self.n_qubits
+
+            for j in range(0, n_qubits, 4): 
+
+                qubits = [j, j+1, j+2, j+3]
+
+                # rotations for each qubit
+                for k in qubits:
+                    qml.RY(w[0][k,0], wires=k)
+                    qml.RZ(w[0][k,1], wires=k)
+
+                # ZZ rotation for pair       
+                qml.CNOT(wires=qubits[:2])
+                qml.CNOT(wires=qubits[2:])
+
+                #rotations for 2 qubits
+                for a, k in enumerate(qubits[1:3]):
+                    qml.RY(w[1][j//4+a,0], wires=k)
+                    qml.RZ(w[1][j//4+a,1], wires=k)
+
+                # ZZ rotation for pairS
+                qml.CNOT(wires=qubits[1:3])
+
+            #TODO: generalize
+            for i, k in enumerate([2,6]):
+                qml.RY(w[2][i,0], wires=k)
+                qml.RZ(w[2][i,1], wires=k)
+            qml.CNOT(wires=[2,6])
+            
 
     class Ansatz_final_11(Ansatz):
 
@@ -71,10 +119,7 @@ class parts:
         def __call__(self, weights):
 
             # split weights
-            w = []
-            for i in range(len(self.weights_sizes)):
-                w.append(weights[:self.weights_sizes[i]].reshape(self.weights_shapes[i]))
-                weights = weights[self.weights_sizes[i]:]
+            w = self._split_weights(weights)
 
             # number of qubits
             n_qubits = self.n_qubits
