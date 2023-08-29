@@ -291,7 +291,7 @@ class pytorch_model:
             plt.plot(self.losses_epochs)
             plt.title('Loss per epoch')
             if save: 
-                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_losses_epoch")
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_losses_epochs")
                 plt.savefig(file)
                 print("Saved in: ", file)
             plt.show()
@@ -301,7 +301,7 @@ class pytorch_model:
             plt.plot(self.losses_epochs_validation)
             plt.title('Loss per epoch (validation)')
             if save: 
-                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_losses_epoch_validation")
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="png", version=self.version, postfix="_losses_epochs_validation")
                 plt.savefig(file)
                 print("Saved in: ", file)
             plt.show()
@@ -311,7 +311,7 @@ class pytorch_model:
             self.save_losses(batches=batches, epochs=epochs, epochs_validation=epochs_validation)
     
     def save_losses(self, batches=True, epochs=True, epochs_validation=True):        
-        for bool, name in zip([batches, epochs, epochs_validation], ["losses_batches", "losses_epoch", "losses_epoch_validation"]):
+        for bool, name in zip([batches, epochs, epochs_validation], ["losses_batches", "losses_epochs", "losses_epochs_validation"]):
             if bool:
                 file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="txt", version=self.version, postfix="_"+name)
                 with open(file, 'w') as file:
