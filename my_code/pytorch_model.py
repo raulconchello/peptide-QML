@@ -75,7 +75,9 @@ class pytorch_model:
                 n_validation = 10,
                 n_print_validation = 3,
                 # Time
-                time = True
+                time = True,
+                # Stop training
+                stop_training_options = {},
     ):
         
         self.training_inputs = {
@@ -90,6 +92,7 @@ class pytorch_model:
             'n_validation': n_validation,
             'n_print_validation': n_print_validation,
             'time': time,
+            'stop_training_options': stop_training_options,
         }
         self.version = f.update_version(self.name_notebook, self.initial_path)
 
@@ -214,7 +217,7 @@ class pytorch_model:
 
 
             # Stop training if the loss is not changing
-            if self.should_stop_training(self.losses_epochs, 5, ):
+            if self.should_stop_training(self.losses_epochs, **stop_training_options):
                 print('The loss is not changing anymore, so we stop training.')
                 break
 
