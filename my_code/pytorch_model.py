@@ -399,7 +399,7 @@ class pytorch_model:
         # function to save and print
         def output(string):
             output_lines.append(string)
-            if print: print(string)
+            if printing: print(string)
 
         # print and save in variables
         for x, (t, p, l) in enumerate(zip((y_test), y_pred, losses)):
