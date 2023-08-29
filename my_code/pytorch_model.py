@@ -388,8 +388,7 @@ class pytorch_model:
 
         plt.show()
 
-
-    def print_validation(self, save=False, precision=3, percentatge=1):
+    def save_validation(self, save=False, precision=3, percentatge=1, print=False):
 
         y_test, y_pred, losses, avg_loss = self._compute_validation(percentatge=percentatge)
 
@@ -397,10 +396,10 @@ class pytorch_model:
         output_lines = []
         format_string = 'i: {}, \t\t target: {:.%df}, \t prediction: {:.%df}, \t loss: {:.%df}' % (precision, precision, precision)
 
-        # function to print and save
+        # function to save and print
         def output(string):
             output_lines.append(string)
-            print(string)
+            if print: print(string)
 
         # print and save in variables
         for x, (t, p, l) in enumerate(zip((y_test), y_pred, losses)):
