@@ -314,9 +314,9 @@ class pytorch_model:
         for bool, name in zip([batches, epochs, epochs_validation], ["losses_batches", "losses_epoch", "losses_epoch_validation"]):
             if bool:
                 file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="txt", version=self.version, postfix="_"+name)
-                with open(file, 'w') as f:
+                with open(file, 'w') as file:
                     for loss in getattr(self, name, []):
-                        f.write(str(loss)+'\n')
+                        file.write(str(loss)+'\n')
 
 
     def _compute_validation(self, percentatge=1):
