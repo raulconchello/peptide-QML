@@ -313,11 +313,11 @@ class pytorch_model:
     def save_losses(self, batches=True, epochs=True, epochs_validation=True):        
         for bool, name in zip([batches, epochs, epochs_validation], ["losses_batches", "losses_epochs", "losses_epochs_validation"]):
             if bool:
-                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="txt", version=self.version, postfix="_"+name)
-                with open(file, 'w') as file:
+                file_name = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="txt", version=self.version, postfix="_"+name)
+                with open(file_name, 'w') as file:
                     for loss in getattr(self, name, []):
                         file.write(str(loss)+'\n')
-                print("Saved in: ", file)
+                print("Saved in: ", file_name)
 
 
     def _compute_validation(self, percentatge=1):
