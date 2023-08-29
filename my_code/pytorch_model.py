@@ -274,7 +274,7 @@ class pytorch_model:
 
             plt.show()
 
-    def plot_losses(self, batches=True, epochs=True, epochs_validation=True, save=False):
+    def plot_losses(self, batches=True, epochs=True, epochs_validation=True, save=False, save_txt=False):
         
         if batches:
             plt.figure()
@@ -305,6 +305,19 @@ class pytorch_model:
                 plt.savefig(file)
                 print("Saved in: ", file)
             plt.show()
+
+        #save data
+        if save_txt:
+            self.save_losses(batches=batches, epochs=epochs, epochs_validation=epochs_validation)
+    
+    def save_losses(self, batches=True, epochs=True, epochs_validation=True):        
+        for bool, name in zip([batches, epochs, epochs_validation], ["losses_batches", "losses_epoch", "losses_epoch_validation"]):
+            if bool:
+                file = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="txt", version=self.version, postfix="_"+name)
+                with open(file, 'w') as f:
+                    for loss in getattr(self, name, []):
+                        f.write(str(loss)+'\n')
+
 
     def _compute_validation(self, percentatge=1):
 
