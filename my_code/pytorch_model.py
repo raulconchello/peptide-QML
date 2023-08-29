@@ -388,7 +388,7 @@ class pytorch_model:
 
         plt.show()
 
-    def validation(self, save=True, precision=3, percentatge=1, print=False):
+    def str_validation(self, save=True, precision=3, percentatge=1, print=False):
 
         y_test, y_pred, losses, avg_loss = self._compute_validation(percentatge=percentatge)
 
