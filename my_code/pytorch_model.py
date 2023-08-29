@@ -317,6 +317,7 @@ class pytorch_model:
                 with open(file, 'w') as file:
                     for loss in getattr(self, name, []):
                         file.write(str(loss)+'\n')
+                print("Saved in: ", file)
 
 
     def _compute_validation(self, percentatge=1):
