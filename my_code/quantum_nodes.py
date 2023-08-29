@@ -286,16 +286,16 @@ class circuit:
 
     def __str__(self):
         string = "QLayer(\n"
-        string += f'\tn_qubits: {self.n_qubits}\n'
-        string += f'\tembedding: {self.embedding}\n'
-        string += f'\tembedding_ansatz: {self.embedding_ansatz}\n'
-        string += f'\tblock_ansatz: {self.block_ansatz}\n'
-        string += f'\tmeasurement: {self.measurement}\n'
-        string += f'\tembedding_n_layers: {self.n_layers[0]}\n'
-        string += f'\tdifferent_inputs_per_layer: {self.different_inputs_per_layer}\n'
-        string += f'\tblock_n_layers: {self.n_layers[1]}\n'
-        string += f'\twrapper_qlayer: {self.wrapper_qlayer.__name__}\n' if self.wrapper_qlayer is not None else 'wrapper_qlayer: None\n'   
-        string += f'\tdevice: \n{self.dev}'.replace('\n', '\n\t\t\t')
+        string += f'\t\tn_qubits: {self.n_qubits}\n'
+        string += f'\t\tembedding: {self.embedding}\n'
+        string += f'\t\tembedding_ansatz: {self.embedding_ansatz}\n'
+        string += f'\t\tblock_ansatz: {self.block_ansatz}\n'
+        string += f'\t\tmeasurement: {self.measurement}\n'
+        string += f'\t\tembedding_n_layers: {self.n_layers[0]}\n'
+        string += f'\t\tdifferent_inputs_per_layer: {self.different_inputs_per_layer}\n'
+        string += f'\t\tblock_n_layers: {self.n_layers[1]}\n'
+        string += f'\t\twrapper_qlayer: {self.wrapper_qlayer.__name__}\n' if self.wrapper_qlayer is not None else '\t\twrapper_qlayer: None\n'   
+        string += f'\t\tdevice: \n{self.dev}'.replace('\n', '\n\t\t\t')
         string += '\n)'
 
         return string

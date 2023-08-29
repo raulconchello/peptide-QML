@@ -413,10 +413,6 @@ class pytorch_model:
 
             # model layers
             file.write("\n\n\nModel (notebook {}, version {}):\n".format(self.name_notebook, self.version))
-            file.write(str(self.model)+"\n\n\nLayer by layer:\n")
-
-            for i, layer in enumerate(self.model):
-                file.write("# --- " + str(i) + " --- #\n" + layer.__str__() + "\n\n")
 
             # model training inputs
             file.write("\nTraining inputs:\n")

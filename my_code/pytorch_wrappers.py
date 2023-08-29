@@ -56,8 +56,6 @@ class QLayer(torch.nn.Module):
         super(QLayer, self).__init__()
         self.qlayer = qlayer
 
-    def __str__(self):
-        return str(self.qlayer)
-
     def forward(self, x):
         return QNodeFunction.apply(x, self.qlayer)
+    
