@@ -314,8 +314,8 @@ class pytorch_model:
             self.save_losses(batches=batches, epochs=epochs, epochs_validation=epochs_validation)
     
     def save_losses(self, batches=True, epochs=True, epochs_validation=True):        
-        for bool, name in zip([batches, epochs, epochs_validation], ["losses_batches", "losses_epochs", "losses_epochs_validation"]):
-            if bool:
+        for b, name in zip([batches, epochs, epochs_validation], ["losses_batches", "losses_epochs", "losses_epochs_validation"]):
+            if b:
                 file_name = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="txt", version=self.version, postfix="_"+name)
                 with open(file_name, 'w') as file:
                     for loss in getattr(self, name, []):
@@ -388,7 +388,7 @@ class pytorch_model:
 
         plt.show()
 
-    def str_validation(self, save=True, precision=3, percentatge=1, print=False):
+    def str_validation(self, save=True, precision=3, percentatge=1, printing=False):
 
         y_test, y_pred, losses, avg_loss = self._compute_validation(percentatge=percentatge)
 
