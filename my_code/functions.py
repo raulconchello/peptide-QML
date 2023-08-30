@@ -123,7 +123,15 @@ def string_to_single_energy(string, h):
     energy = np.sum(h[np.arange(len(vector)), vector])
     return energy.item()
 
-def generate_random_data_from_energies(file_single_path, file_pair_path, file_out_path, max_score=None, n_samples=1000, n_amino_acids=12, only_single_energies=False):
+def string_to_pair_energy(string, J):
+    vector = string_to_numbers(string)
+    energy = np.sum([J[i, j, vector[i], vector[j]] for i in range(len(vector)) for j in range(len(vector))])
+    return energy.item()
+
+def generate_random_data_from_energies(file_single_path, file_pair_path, file_out_path, max_score=None, n_samples=1000, n_amino_acids=12, only_single_energies=False, only_pair_energies=False):
+
+    if only_single_energies and only_pair_energies:
+        raise Exception("You can't set both only_single_energies and only_pair_energies to True")
 
     h, J = read_energies_file(file_single_path, file_pair_path)
 
@@ -134,7 +142,10 @@ def generate_random_data_from_energies(file_single_path, file_pair_path, file_ou
 
         while n_samples < n_samples_to_do:
             string = ''.join(random.choice(POSSIBLE_AMINOACIDS_LETTER) for _ in range(n_amino_acids))
-            score = string_to_energy(string, h, J) if not only_single_energies else string_to_single_energy(string, h)
+
+            if only_single_energies: score = string_to_single_energy(string, h)
+            elif only_pair_energies: score = string_to_pair_energy(string, J)
+            else:                    score = string_to_energy(string, h, J)
 
             if max_score is None or score <= max_score:
                 file.write(f'{string}  {score}\n')
