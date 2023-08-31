@@ -504,10 +504,13 @@ class pytorch_model:
         print("Model loaded from {}".format(input_filename))
 
     def dump(self, filename=None):
+        #dump the object in a pickle file without the model attribute
         if filename is None:
             filename = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="pickle", version=self.version)
         with open(filename, "wb") as file:
+            x, self.model = self.model, str(self.model)
             pickle.dump(self, file)
+            self.model = x
 
     @classmethod
     def load(cls, filename=None, name_notebook=None, version=None, initial_path=None):
