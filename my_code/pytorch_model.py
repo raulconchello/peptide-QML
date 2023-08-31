@@ -16,18 +16,34 @@ class RelativeMSELoss(nn.Module):
     def __init__(self):
         super(RelativeMSELoss, self).__init__()
 
-    def forward(self, predictions, targets):
+    def forward(self, predictions, targets, mean_squared_targets=None):
         mse_loss = nn.MSELoss()(predictions, targets)
-        relative_mse_loss = mse_loss / torch.mean(targets**2)
-        rmse_loss = torch.sqrt(relative_mse_loss)
+
+        mean_squared_targets = torch.mean(targets**2) if mean_squared_targets is None else mean_squared_targets        
+        rmse_loss = mse_loss / mean_squared_targets
+        rmse_loss = torch.sqrt(rmse_loss)
+
+        return rmse_loss
+    
+class SquaredRelativeMSELoss(nn.Module):
+    def __init__(self):
+        super(SquaredRelativeMSELoss, self).__init__()
+
+    def forward(self, predictions, targets, mean_squared_targets=None):
+        mse_loss = nn.MSELoss()(predictions, targets)
+
+        mean_squared_targets = torch.mean(targets**2) if mean_squared_targets is None else mean_squared_targets        
+        rmse_loss = mse_loss / mean_squared_targets
+
         return rmse_loss
 
 class pytorch_model:
 
-    def __init__(   self, 
-                    circuit_layers, 
-                    save_options,
-                    keep_track_params = False,
+    def __init__(   
+        self, 
+        circuit_layers, 
+        save_options,
+        keep_track_params = False,
     ):
 
         # model
@@ -62,7 +78,7 @@ class pytorch_model:
 
     def train(  self, 
                 # loss function and optimizer
-                loss_function = RelativeMSELoss,  
+                loss_function = SquaredRelativeMSELoss,  
                 optimizer = optim.SGD,
                 optimizer_options = {'lr': 0.05},
                 # initial parameters
@@ -106,6 +122,8 @@ class pytorch_model:
         target_data = self.data_Y
         input_data_validation = self.data_X_validation
         target_data_validation = self.data_Y_validation
+                
+        mean_squared_targets = torch.mean(target_data**2)
 
         # time
         if time:
@@ -119,7 +137,7 @@ class pytorch_model:
 
         # keep track of the losses (and parameters)
         self.losses_batches = []
-        self.losses_epochs = [loss_function(self.model(input_data), target_data).item()]
+        self.losses_epochs = [loss_function(self.model(input_data), target_data, mean_squared_targets).item()]
         if self.keep_track_params:  self.parameters = [deepcopy(self.model.state_dict())]
 
         # validation
@@ -132,7 +150,7 @@ class pytorch_model:
             t_validation = target_data_validation[::n_validation] 
 
             # keep track of the losses
-            self.losses_epochs_validation = [loss_function(self.model(i_validation), t_validation).item()]
+            self.losses_epochs_validation = [loss_function(self.model(i_validation), t_validation, mean_squared_targets).item()]
 
             # print the loss before training
             print('Epoch [{}/{}], Loss: {:.4f}, Loss validation: {:.4f}'.format('0', num_epochs, self.losses_epochs[-1], self.losses_epochs_validation[-1]))            
@@ -161,7 +179,7 @@ class pytorch_model:
                 outputs = self.model(inputs)
 
                 # Compute the loss
-                loss = loss_function(outputs, targets)
+                loss = loss_function(outputs, targets, mean_squared_targets)
 
                 # Backward pass and optimization
                 optimizer.zero_grad()
@@ -186,7 +204,7 @@ class pytorch_model:
 
             # Validation
             if validation:
-                self.losses_epochs_validation.append(loss_function(self.model(i_validation), t_validation).item()) 
+                self.losses_epochs_validation.append(loss_function(self.model(i_validation), t_validation, mean_squared_targets).item()) 
 
             # print the loss of "n_print_validation" strings of the validation data
             if validation:
@@ -194,7 +212,7 @@ class pytorch_model:
                 for i in range(n_print_validation):
                     prediction = self.model(i_validation[i])
                     target = t_validation[i]
-                    print('\t Validation string, \t i: {}; \t prediction: {:.4f}, \t target: {:.4f}, \t loss: {:.4f}'.format(i, prediction.item(), target.item(), loss_function(prediction, target).item()))
+                    print('\t Validation string, \t i: {}; \t prediction: {:.4f}, \t target: {:.4f}, \t loss: {:.4f}'.format(i, prediction.item(), target.item(), loss_function(prediction, target, mean_squared_targets).item()))
 
 
             if time:
@@ -364,6 +382,7 @@ class pytorch_model:
             start_time = t.time()
 
             # compute validation and save
+            mean_squared_targets = torch.mean(self.data_Y**2)
             for i, (x, y) in enumerate(zip(data_X_validation, data_Y_validation)):
 
                 # print progress
@@ -372,7 +391,7 @@ class pytorch_model:
 
                 # compute
                 prediction = self.model(x)
-                loss = self.loss_function(prediction, y)
+                loss = self.loss_function(prediction, y, mean_squared_targets)
 
                 # save
                 self.avg_loss_validation += loss/len_data
