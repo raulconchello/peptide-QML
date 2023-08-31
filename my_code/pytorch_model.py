@@ -512,7 +512,7 @@ class pytorch_model:
     @classmethod
     def load(cls, filename=None, name_notebook=None, version=None, initial_path=None):
         if filename is None:
-            filename = initial_path + "checkpoints/"+ name_notebook +"/pickled_objects/" + name_notebook + "_" + str(version) + ".pickle"
+            filename = initial_path + "checkpoints/"+ name_notebook[:4] +"/pickled_objects/" + name_notebook + "_" + str(version) + ".pickle"
         with open(filename, "rb") as file:
             loaded_obj = pickle.load(file)
         return loaded_obj
