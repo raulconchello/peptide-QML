@@ -36,6 +36,19 @@ class SquaredRelativeMSELoss(nn.Module):
         rmse_loss = mse_loss / mean_squared_targets
 
         return rmse_loss
+    
+class ScaledSquaredRelativeMSELoss(nn.Module):
+    def __init__(self, scale=100):
+        super(SquaredRelativeMSELoss, self).__init__()
+        self.scale = scale
+
+    def forward(self, predictions, targets, mean_squared_targets=None):
+        mse_loss = nn.MSELoss()(predictions, targets)
+
+        mean_squared_targets = torch.mean(targets**2) if mean_squared_targets is None else mean_squared_targets        
+        rmse_loss = mse_loss / mean_squared_targets
+
+        return rmse_loss*self.scale
 
 class pytorch_model:
 
@@ -78,7 +91,7 @@ class pytorch_model:
 
     def train(  self, 
                 # loss function and optimizer
-                loss_function = SquaredRelativeMSELoss,  
+                loss_function = ScaledSquaredRelativeMSELoss,  
                 optimizer = optim.SGD,
                 optimizer_options = {'lr': 0.05},
                 # initial parameters
