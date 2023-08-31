@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import os
 from copy import deepcopy
 import numpy as np
+import pickle
 
 from . import functions as f
 
@@ -221,14 +222,15 @@ class pytorch_model:
                 print('The loss is not changing anymore, so we stop training.')
                 break
 
-    def should_stop_training(self, losses, lookback_epochs=5, threshold=0.001):
+    def should_stop_training(self, losses, lookback_epochs=5, threshold_slope=0.001, threshold_std_dev=0.1):
         """
         Determines if training should stop based on the standard deviation of the last `lookback_epochs` losses.
         
         Parameters:
         - losses (list): List of loss values, where the most recent loss is the last element.
         - lookback_epochs (int): Number of recent epochs to consider.
-        - threshold (float): Standard deviation threshold to determine if training should stop.
+        - threshold_slope (float): Maximum slope of the linear regression of the losses.
+        - threshold_std_dev (float): Maximum standard deviation of the losses.
         
         Returns:
         - bool: True if training should stop, False otherwise.
@@ -243,9 +245,20 @@ class pytorch_model:
         
         # Calculate the standard deviation of the recent losses
         std_dev = sum([(x - sum(recent_losses) / lookback_epochs) ** 2 for x in recent_losses]) ** 0.5 / lookback_epochs
+
+        # If the standard deviation is above the threshold, continue training
+        if std_dev > threshold_std_dev:
+            return False
         
-        # If the standard deviation is below the threshold, stop the training
-        return std_dev < threshold
+        # Calculate the slope of the linear regression of the recent losses
+        slope = np.polyfit(range(len(recent_losses)), recent_losses, 1)[0]
+
+        # If the negative slope is above the threshold, continue training
+        if -slope > threshold_slope:
+            return False
+
+        # Otherwise, stop training
+        return True
     
     def _initialize(self, type, layer, name, options):
         getattr(nn.init, type)(getattr(self.model[layer], name), **options)
@@ -489,6 +502,20 @@ class pytorch_model:
         self.version = version
 
         print("Model loaded from {}".format(input_filename))
+
+    def dump(self, filename=None):
+        if filename is None:
+            filename = f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="pickle", version=self.version)
+        with open(filename, "wb") as file:
+            pickle.dump(self, file)
+
+    @classmethod
+    def load(cls, filename=None, name_notebook=None, version=None, initial_path=None):
+        if filename is None:
+            filename = initial_path + "checkpoints/"+ name_notebook +"/pickled_objects/" + name_notebook + "_" + str(version) + ".pickle"
+        with open(filename, "rb") as file:
+            loaded_obj = pickle.load(file)
+        return loaded_obj
 
 
     

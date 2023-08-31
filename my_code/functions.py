@@ -175,7 +175,15 @@ def create_validating_set(X, Y, percentage=0.1):
 ###--- SAVE DATA ---###
 def get_name_file_to_save(name_notebook, initial_path, extension, version=None, postfix=""):
 
-    dict_extension_folder = {"png": "plots", "pth": "models", "pdf": "pdfs", "ipynb": "notebooks", "txt": "txts", "version": "versions"}
+    dict_extension_folder = {
+        "png": "plots", 
+        "pth": "models", 
+        "pdf": "pdfs", 
+        "ipynb": "notebooks", 
+        "txt": "txts", 
+        "version": "versions",
+        "pickle": "pickled_objects"
+    }
 
     day = name_notebook[:4]
     folder = initial_path + "checkpoints/" + day
@@ -190,7 +198,7 @@ def get_name_file_to_save(name_notebook, initial_path, extension, version=None, 
         os.makedirs(folder)
         print(f"Folder '{folder}' created successfully.")
 
-        for subfolder in ["models", "plots", "pdfs", "notebooks", "txts", "versions"]:
+        for subfolder in dict_extension_folder.values():
             os.makedirs(folder + "/" + subfolder)
             print(f"Folder '{folder}/{subfolder}' created successfully.")
             #create .gitkeep file
