@@ -39,7 +39,7 @@ class SquaredRelativeMSELoss(nn.Module):
     
 class ScaledSquaredRelativeMSELoss(nn.Module):
     def __init__(self, scale=100):
-        super(SquaredRelativeMSELoss, self).__init__()
+        super(ScaledSquaredRelativeMSELoss, self).__init__()
         self.scale = scale
 
     def forward(self, predictions, targets, mean_squared_targets=None):
