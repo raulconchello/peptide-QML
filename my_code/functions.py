@@ -136,7 +136,7 @@ def string_to_numbers(string):
     return [letter_to_number[letter] for letter in string]
 
 def string_to_vector(string):
-    return np.array([letter_to_vector[letter] for letter in string])
+    return np.array([letter_to_vector[letter] for letter in string]).flatten()
 
 def string_to_energy(string, h, J):
 
