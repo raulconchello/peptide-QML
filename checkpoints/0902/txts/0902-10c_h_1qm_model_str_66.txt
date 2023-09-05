@@ -1,0 +1,23 @@
+metadata:
+	data_file_path: ../data/Scores/PET/generated/bb14_Strings_Energies_10_000_10_aa.txt
+	n_aminoacids: 10
+	block_n_layers: 6
+	type_energy: 
+
+
+
+Model (notebook 0902-10c_h_1qm.ipynb, version 66):
+
+Training inputs:
+	loss_function: <class 'my_code.pytorch_model.ScaledSquaredRelativeMSELoss'>
+	optimizer: <class 'torch.optim.adam.Adam'>
+	optimizer_options: {'lr': 0.02}
+	initialization_options: [{}]
+	num_epochs: 100
+	batch_size: 32
+	print_batch: True
+	validation: True
+	n_validation: 10
+	n_print_validation: 3
+	time: True
+	stop_training_options: {'lookback_epochs': 5, 'threshold_slope': 0.001, 'threshold_std_dev': 0.2}
