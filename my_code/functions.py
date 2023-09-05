@@ -86,19 +86,46 @@ def read_energies_file(file_single_path, file_pair_path):
 
     return h, J
 
-def read_data_file(file_path):
-    strings = []
-    numbers = []
+# def read_data_file(file_path):
+#     strings = []
+#     numbers = []
+
+#     with open(file_path, 'r') as file:
+#         for line in file:
+#             line = line.strip()
+#             if line:
+#                 string, number = line.split()
+#                 strings.append(string)
+#                 numbers.append(float(number))
+
+#     return strings, numbers
+
+def read_data_file(
+        file_path,  
+        skip_first_line=False, 
+        delimiter=' ', 
+        columns_to_return=[0, 1],
+        which_columns_are_numbers=[1]
+    ):
+
+    columns = []
+    for _ in columns_to_return:
+        columns.append([])
 
     with open(file_path, 'r') as file:
-        for line in file:
-            line = line.strip()
-            if line:
-                string, number = line.split()
-                strings.append(string)
-                numbers.append(float(number))
+        for i, line in enumerate(file):
 
-    return strings, numbers
+            if i == 0 and skip_first_line: continue #skip the first line
+
+            line = line.strip()
+
+            if line:
+                items = line.split(delimiter)
+                for j, item in enumerate(items):
+                    if j in columns_to_return:
+                        columns[j].append(item if j not in which_columns_are_numbers else float(item))
+
+    return columns
 
 def string_to_angles(string):
     return [letter_to_angle[letter] for letter in string]
