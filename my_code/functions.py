@@ -124,7 +124,7 @@ def read_data_file(
                 i_column = 0
                 for n, item in enumerate(items):
                     if n in columns_to_return:
-                        columns[i_column].append(item if j not in which_columns_are_numbers else float(item))
+                        columns[i_column].append(item if n not in which_columns_are_numbers else float(item))
                         i_column = i_column + 1
 
     return columns
