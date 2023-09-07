@@ -270,3 +270,42 @@ def update_version(name_notebook, initial_path):
         file.write(str(version+1))
 
     return version+1
+
+
+def should_stop_training(losses, lookback_epochs=5, threshold_slope=0.001, threshold_std_dev=0.1):
+    """
+    Determines if training should stop based on the standard deviation of the last `lookback_epochs` losses.
+    
+    Parameters:
+    - losses (list): List of loss values, where the most recent loss is the last element.
+    - lookback_epochs (int): Number of recent epochs to consider.
+    - threshold_slope (float): Maximum slope of the linear regression of the losses.
+    - threshold_std_dev (float): Maximum standard deviation of the losses.
+    
+    Returns:
+    - bool: True if training should stop, False otherwise.
+    """
+    
+    # If there aren't enough epochs yet, continue training
+    if len(losses) < lookback_epochs:
+        return False
+    
+    # Extract the last `lookback_epochs` losses
+    recent_losses = losses[-lookback_epochs:]
+    
+    # Calculate the standard deviation of the recent losses
+    std_dev = sum([(x - sum(recent_losses) / lookback_epochs) ** 2 for x in recent_losses]) ** 0.5 / lookback_epochs
+
+    # If the standard deviation is above the threshold, continue training
+    if std_dev > threshold_std_dev:
+        return False
+    
+    # Calculate the slope of the linear regression of the recent losses
+    slope = np.polyfit(range(len(recent_losses)), recent_losses, 1)[0]
+
+    # If the negative slope is above the threshold, continue training
+    if -slope > threshold_slope:
+        return False
+
+    # Otherwise, stop training
+    return True
