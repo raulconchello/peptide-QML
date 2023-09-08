@@ -1,21 +1,20 @@
 
-
+# imports
 import os
+import uuid
 import datetime
 import time as t
-import matplotlib.pyplot as plt
 import numpy as np
+from copy import deepcopy
 
+# torch imports
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from torch.utils.data import DataLoader, TensorDataset
-from sklearn.model_selection import train_test_split
-from copy import deepcopy
-
-from . import functions as f
-from . import results as r
+# my imports
+from . import helper_classes as c
+from . import helper_functions as f
 
 torch.set_default_dtype(torch.float64)
 
@@ -35,47 +34,14 @@ class MSRELoss(nn.Module):
         return torch.mean(torch.sum((predictions - targets)**2 / targets**2))
     
 
-class data:
 
-    def __init__(
-        self, 
-        x, 
-        y, 
-        split_options,
-        tensors_type_x,
-        tensors_type_y,
-    ):
-        
-        self.x = x
-        self.y = y
 
-        # split data
-        self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(x, y, **split_options)
-
-        # to tensor
-        self.x_train = torch.tensor(self.x_train, dtype=tensors_type_x)
-        self.x_test = torch.tensor(self.x_test, dtype=tensors_type_x)
-        self.y_train = torch.tensor(self.y_train, dtype=tensors_type_y)
-        self.y_test = torch.tensor(self.y_test, dtype=tensors_type_y)
-
-    def set_test_train(self, ptc):
-        self.x_test_train = self.x_train[:int(len(self.x_train)*ptc)]
-        self.y_test_train = self.y_train[:int(len(self.y_train)*ptc)]
-
-    def get_loader(self, batch_size=32, **dataloader_options):
-        return DataLoader(TensorDataset(self.x_train, self.y_train), batch_size=batch_size, **dataloader_options)
-
-    # @property
-    # def train(self):
-    #     return self.x, self.y
-    
-    # @property
-    # def test(self):
-    #     return self.x_test, self.y_test
-    
-    # @property
-    # def test_train(self):
-    #     return self.x_test_train, self.y_test_train
+def computed_required(func):
+    def wrapper(self, *args, **kwargs):
+        if not self.computed:
+            raise ValueError("You need to compute the validation first. Use validation.compute(pct=pct) to compute the validation for the test dataset.")
+        return func(self, *args, **kwargs)
+    return wrapper
 
 class Model(nn.Module):
 
@@ -83,19 +49,19 @@ class Model(nn.Module):
         self.name_notebook = name_notebook
         self.initial_path = initial_path
 
-    def set_data(
-        self, 
-        x, 
-        y, 
-        split_options = dict(
-            test_size= 0.2, 
-            random_state = 42
-        ),
-        tensors_type_x = torch.float64,
-        tensors_type_y = torch.float64,
-    ):
+    # def set_data(
+    #     self, 
+    #     x, 
+    #     y, 
+    #     split_options = dict(
+    #         test_size= 0.2, 
+    #         random_state = 42
+    #     ),
+    #     tensors_type_x = torch.float64,
+    #     tensors_type_y = torch.float64,
+    # ):
         
-        self.data = data(x, y, split_options, tensors_type_x, tensors_type_y)
+    #     self.data = c.data(x, y, split_options, tensors_type_x, tensors_type_y)
 
     def initialize_params(self, initialization_options= [{}]):
 
@@ -120,6 +86,8 @@ class Model(nn.Module):
         loss_function = nn.MSELoss,
         optimizer = optim.SGD,
         optimizer_options = {'lr': 0.05},
+        # data
+        data = None,
         # training loop
         num_epochs = 25,
         batch_size = 32,
@@ -131,12 +99,20 @@ class Model(nn.Module):
         # Stop training
         stop_training_options = {},
     ):
+        
+        #check if data is given and if isinstance of c.data
+        if data is None:
+            raise ValueError("You need to give a data object.")
+        if not isinstance(data, c.data):
+            raise ValueError("The data object needs to be a data object.")
+        self.data = data
 
         self.training_inputs = {
             'loss_function': loss_function,
             'optimizer': optimizer,
             'optimizer_options': optimizer_options,
             'initialization_options': getattr(self, 'initialization_options', [{}]),
+            'data': str(data.uuid),
             'num_epochs': num_epochs,
             'batch_size': batch_size,
             'print_batch': print_batch,
@@ -145,7 +121,7 @@ class Model(nn.Module):
             'validation_print_n': validation_print_n,
             'stop_training_options': stop_training_options,
         }
-        self.version = f.update_version(self.name_notebook, self.initial_path)
+        self.version, self.uuid, self.day = f.update_version(self.name_notebook, self.initial_path), uuid.uuid4(), datetime.datetime.now().strftime("%m%d")
 
         # time
         start_time = t.time()
@@ -158,14 +134,15 @@ class Model(nn.Module):
         self.data.set_test_train(validation_pct)
 
         # keep track of results
-        self.results = r.Results(
-            loss_batch  = r.keep(last=False, best=False, history=True),
-            time_batch  = r.keep(last=False, best=False, history=True),
-            n_epoch     = r.keep(last=True, best=True, history=True),
-            loss_epoch  = r.keep(last=True, best=True, history=True),
-            loss_validation_epoch = r.keep(last=True, best=True, history=True),
-            parameters_epoch  = r.keep(last=True, best=True, history=keep_track_params),
-            time_epoch        = r.keep(last=True, best=True, history=True),
+        self.results = c.Results(
+            model_uuid = self.uuid,
+            loss_batch  = c.keep(last=False, best=False, history=True),
+            time_batch  = c.keep(last=False, best=False, history=True),
+            n_epoch     = c.keep(last=True, best=True, history=True),
+            loss_epoch  = c.keep(last=True, best=True, history=True),
+            loss_validation_epoch = c.keep(last=True, best=True, history=True),
+            parameters_epoch  = c.keep(last=True, best=True, history=keep_track_params),
+            time_epoch        = c.keep(last=True, best=True, history=True),
         )
         self.results.update(
             update_leader = 'loss_validation_epoch' if validation_pct else 'loss_epoch',
@@ -241,23 +218,46 @@ class Model(nn.Module):
                 print('The loss is not changing anymore, so we stop training.')
                 break
 
-    def validate(self, pct=1, plot=True, save=True):
-        self.validation = validation(self)
-        self.validation.compute(pct=pct)
-        if plot: self.validation.plot()
-        if save: self.validation.save(metadata={}) #TODO: add metadata and .save
-    
-    def save_results(self, metadata = {}):
-        metadata = {
-            **metadata,
+    def save_model_info(self, description, metadata={}):
+        dict_to_save_csv = {
+            'uuid': str(self.uuid),
+            'day': self.day,            
+            'version': self.version,
+            'data_uuid': str(self.data.uuid),
+            'n_aminoacids': self.data.input_params['n_aminoacids'],
+            'name_notebook': self.name_notebook,
+            'description': description,
+            'date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        dict_to_save_json = {
+            'model_uuid': str(self.uuid),
             'name_notebook': self.name_notebook,
             'initial_path': self.initial_path,
             'model': str(self),
-            'training_inputs': self.training_inputs,
             'version': self.version,
-            'date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'training_inputs': self.training_inputs,
+            'metadata': metadata,
         }
-        self.results.dump(f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="json", version=self.version), metadata)
+
+
+    def validate(self, pct=1, plot=True, save=True, metadata={}):
+        self.validation = c.validation(self, model_uuid=self.uuid)
+        self.validation.compute(pct=pct)
+        if plot: self.validation.plot()
+        if save: 
+            self.save_model_info()
+            self.validation.dump(
+                path=f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="json", version=self.version, postfix="_validation"),
+                metadata=metadata
+            ) 
+        return self.validation.mean_loss
+    
+    def save_results(self, metadata = {}):
+        self.save_model_info()
+        self.results.dump(
+            f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="json", version=self.version, postfix="_results"), 
+            metadata=metadata
+        )
 
 
     def plot_losses(self):
@@ -294,54 +294,7 @@ class Model(nn.Module):
         #     plt.show()
 
 
-class validation:
-    
-    def __init__(self, model):
-        self.model = model  
-        self.computed = False   
 
-    def compute(self, pct=1):  
-        self.pct = pct
-
-        if getattr(self, 'last_pct', 0) != self.pct:
-            self.last_pct = self.pct
-
-            # random order for test data
-            random_order = np.random.permutation(len(self.model.data.x_test))
-            x_test = self.model.data.x_test[random_order]
-            y_test = self.model.data.y_test[random_order]
-            
-            # data
-            self.x_test = x_test[:int(len(x_test)*self.pct)]
-            self.y_test = y_test[:int(len(y_test)*self.pct)]
-            self.y_prediction = []
-            self.losses = []
-
-            self.model.eval()
-            with torch.no_grad():
-                for x, y in zip(self.x_test, self.y_test):
-                    prediction = self.model(x)
-                    self.y_prediction.append(prediction.item())
-                    self.losses.append(self.model.loss_function(prediction, y).item())
-
-        self.computed = True
-
-    @property
-    def mean_loss(self):        
-        if not self.computed: raise ValueError("You need to compute the validation first. Use validation.compute(pct=pct) to compute the validation for the test dataset.")
-        return np.mean(self.losses)
-    
-    def plot(self, fig_size=(6, 6)):
-
-        plt.figure(figsize=fig_size)
-        plt.scatter(self.y_test, self.y_prediction, color='r', label='Actual vs. Predicted', alpha=0.1)
-        plt.plot([np.min(self.y_test), np.max(self.y_test)], [np.min(self.y_test), np.max(self.y_test)], 'k--', lw=2, label='1:1 Line')
-        plt.xlabel('True Values')
-        plt.ylabel('Predictions')
-        plt.title('Predictions vs. True Values (mean loss: {:.4f})'.format(self.mean_loss))
-        plt.legend()
-        plt.show()
-                
 
 
 
