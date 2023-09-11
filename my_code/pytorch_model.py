@@ -46,23 +46,25 @@ def computed_required(func):
 
 class Model(nn.Module):
 
+    # loss properties
+    @property
+    def loss_train(self):
+        return self.loss_function(self(self.data.x_train), self.data.y_train).item()
+    @property
+    def loss_test_train(self):
+        return self.loss_function(self(self.data.x_test_ptc), self.data.y_test_ptc).item()
+    @property
+    def loss_test(self):
+        return self.loss_function(self(self.data.x_test), self.data.x_test).item()
+    
+    # name properties
+    @property
+    def file_name(self):
+        return self.name_notebook + "-" + str(self.version)
+
     def set_name_and_path(self, name_notebook, initial_path):
         self.name_notebook = name_notebook
         self.initial_path = initial_path
-
-    # def set_data(
-    #     self, 
-    #     x, 
-    #     y, 
-    #     split_options = dict(
-    #         test_size= 0.2, 
-    #         random_state = 42
-    #     ),
-    #     tensors_type_x = torch.float64,
-    #     tensors_type_y = torch.float64,
-    # ):
-        
-    #     self.data = c.data(x, y, split_options, tensors_type_x, tensors_type_y)
 
     def initialize_params(self, initialization_options= [{}]):
 
@@ -71,50 +73,36 @@ class Model(nn.Module):
         for io in initialization_options:
             getattr(nn.init, io['type'])(getattr(self[io['layer']], io['name']), **io['options'])
 
-    # loss properties
-    @property
-    def loss_train(self):
-        return self.loss_function(self(self.data.x_train), self.data.y_train).item()
-    @property
-    def loss_test_train(self):
-        return self.loss_function(self(self.data.x_test_train), self.data.x_test_train).item()
-    @property
-    def loss_test(self):
-        return self.loss_function(self(self.data.x_test), self.data.x_test).item()
-    
-    # name properties
-    @property
-    def file_name(self):
-        return self.day + "-" + self.name_notebook + "-" + self.version + "-model_info"
-
-
     def optimize_params(
         self,
-        # loss function and optimizer
+        # save model info
+        save_model_info = True,
+        description = ' ',
+        # data
+        data = None,
+        # train options
         loss_function = nn.MSELoss,
         optimizer = optim.SGD,
         optimizer_options = {'lr': 0.05},
-        # data
-        data = None,
-        # training loop
         num_epochs = 25,
         batch_size = 32,
         print_batch = True,
         keep_track_params = False,
         # validation
-        validation_pct = 0.2,
+        validation_pct = 0.1,
         validation_print_n = 3,
         # Stop training
         stop_training_options = {},
         # metadata
         metadata = {},
     ):
+        self.eval()
         
         #check if data is given and if isinstance of c.data
         if data is None:
-            raise ValueError("You need to give a data object.")
-        if not isinstance(data, c.data):
-            raise ValueError("The data object needs to be a data object.")
+            raise ValueError("You need to give a Data object.")
+        if not isinstance(data, c.Data):
+            raise ValueError("The data object needs to be a Data object.")
         self.data = data
 
         # save metadata
@@ -122,8 +110,8 @@ class Model(nn.Module):
 
         # save training inputs
         self.training_inputs = {
-            'loss_function': loss_function,
-            'optimizer': optimizer,
+            'loss_function': str(loss_function),
+            'optimizer': str(optimizer),
             'optimizer_options': optimizer_options,
             'initialization_options': getattr(self, 'initialization_options', [{}]),
             'data': str(data.uuid),
@@ -135,29 +123,34 @@ class Model(nn.Module):
             'validation_print_n': validation_print_n,
             'stop_training_options': stop_training_options,
         }
-        self.version, self.uuid, self.day = f.update_version(self.name_notebook, self.initial_path), uuid.uuid4(), datetime.datetime.now().strftime("%m%d")
+        self.version, self.uuid, self.day = f.get_version(self.initial_path, self.name_notebook), uuid.uuid4(), datetime.datetime.now().strftime("%m%d")
 
         # time
         start_time = t.time()
 
         # loss function and optimizer
         self.loss_function = loss_function()
-        self.optimizer = optimizer(self.model.parameters(), **optimizer_options)
+        self.optimizer = optimizer(self.parameters(), **optimizer_options)
 
         #data
-        self.data.set_test_train(validation_pct)
+        self.data.set_test_ptc(validation_pct)
+
+        #save model info
+        if save_model_info:
+            self.save_model_info(description=description)
 
         # keep track of results
         self.results = c.Results(
             model_uuid = self.uuid,
             file_name = self.file_name,
+            day = self.day,
             initial_path = self.initial_path,
             metadata = metadata,
             loss_batch  = c.keep(last=False, best=False, history=True),
             time_batch  = c.keep(last=False, best=False, history=True),
             n_epoch     = c.keep(last=True, best=True, history=True),
             loss_epoch  = c.keep(last=True, best=True, history=True),
-            loss_validation_epoch = c.keep(last=True, best=True, history=True),
+            loss_validation_epoch = c.keep(last=True, best=True, history=validation_pct>0),
             parameters_epoch  = c.keep(last=True, best=True, history=keep_track_params),
             time_epoch        = c.keep(last=True, best=True, history=True),
         )
@@ -166,15 +159,16 @@ class Model(nn.Module):
             n_epoch = 0,
             loss_epoch = self.loss_train,
             loss_validation_epoch = self.loss_test_train if validation_pct else None,
-            parameters = deepcopy(self.state_dict()) if keep_track_params else None,
-            time = t.time() - start_time,
+            parameters_epoch = deepcopy(self.state_dict()),
+            time_epoch = t.time() - start_time,
         )
-        print('Epoch [{}/{}], Loss epoch: {:.4f}, Loss validation: {:.4f}'.format(0, num_epochs, self.results.loss_epoch.last, self.results.loss_epoch_validation.last))
+        print('Epoch [{}/{}], Loss epoch: {:.4f}, Loss validation: {:.4f}'.format(0, num_epochs, self.results.loss_epoch.last, self.results.loss_validation_epoch.last))
 
         # training loop
         data_loader = self.data.get_loader(batch_size=batch_size, shuffle=True)
 
         for epoch in range(1, num_epochs+1):
+            self.train()
 
             loss_epoch = 0
 
@@ -184,15 +178,15 @@ class Model(nn.Module):
                 outputs = self(data)
 
                 # Compute the loss and optimize
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 loss = self.loss_function(outputs, target)
                 loss.backward()
-                optimizer.step()
+                self.optimizer.step()
 
                 # Store the loss of the batch
                 self.results.update(
                     loss_batch = loss.item(),
-                    time_batch = t.time() - start_time,
+                    time_batch = int(t.time() - start_time),
                 )
 
                 # print the loss of the batch
@@ -202,21 +196,22 @@ class Model(nn.Module):
                 # add to the epoch loss
                 loss_epoch += loss.item() 
 
+            self.eval()
             # update results
             self.results.update(
                 update_leader = 'loss_validation_epoch' if validation_pct else 'loss_epoch',
                 n_epoch = epoch,
                 loss_epoch = loss_epoch/len(data_loader),
                 loss_validation_epoch = self.loss_test_train if validation_pct else None,
-                parameters = deepcopy(self.state_dict()) if keep_track_params else None,
-                time = t.time() - start_time,
+                parameters_epoch = deepcopy(self.state_dict()),
+                time_epoch = t.time() - start_time,
             )
 
             # print the loss of "validation_print_n" strings of the validation data
             for _ in range(validation_print_n):
 
-                i = np.random.randint(len(self.data.x_test_train))
-                prediction, target = self.model(self.data.set_test_train[i]), self.data.y_test_train[i]
+                i = np.random.randint(len(self.data.x_test_ptc))
+                prediction, target = self(self.data.x_test_ptc[i]), self.data.y_test_ptc[i]
 
                 print('\t Validation string, \t i: {}; \t prediction: {:.4f}, \t target: {:.4f}, \t loss: {:.4f}'.format(
                     i, prediction.item(), target.item(), self.loss_function(prediction, target).item()))
@@ -228,10 +223,10 @@ class Model(nn.Module):
 
             # Print the loss and remaining time for this epoch
             print('Epoch [{}/{}], Loss epoch: {:.4f}, Loss validation: {:.4f}, Time remaining: ~{}h {}m {:.0f}s'.format(
-                epoch, num_epochs, self.results.loss_epoch.last, self.results.loss_epoch_validation.last, hours, minutes, seconds))
+                epoch, num_epochs, self.results.loss_epoch.last, self.results.loss_validation_epoch.last, hours, minutes, seconds))
            
             # Stop training if the loss is not changing
-            if f.should_stop_training(self.losses_epochs, **stop_training_options):
+            if f.should_stop_training(self.results.loss_epoch.history, **stop_training_options):
                 print('The loss is not changing anymore, so we stop training.')
                 break
 
@@ -265,59 +260,55 @@ class Model(nn.Module):
             day=self.day,
         )
 
-    def validate(self, pct=1, add_to_results=True, plot=True, print_each=False): 
+    def validate(self, pct=1, add_to_results=True, plot=False, print_items=False): 
 
-        if not hasattr(self, 'pct_validation') or self.pct_validation != pct:
-            self.pct_validation = pct
+        # random order for test data
+        random_order = np.random.permutation(len(self.data.x_test))
+        x_test = self.data.x_test[random_order]
+        y_test = self.data.y_test[random_order]
 
-            # random order for test data
-            random_order = np.random.permutation(len(self.data.x_test))
-            x_test = self.data.x_test[random_order]
-            y_test = self.data.y_test[random_order]
+        # data
+        x_test = x_test[:int(len(x_test)*pct)]
+        y_test = y_test[:int(len(y_test)*pct)]
+        y_prediction = []
+        losses = []
 
-            # data
-            x_test = x_test[:int(len(x_test)*pct)]
-            y_test = y_test[:int(len(y_test)*pct)]
-            y_prediction = []
-            losses = []
+        #time 
+        len_data = len(x_test)
+        start_time = t.time()
 
-            #time 
-            len_data = len(x_test)
-            start_time = t.time()
+        self.eval()
+        with torch.no_grad():
+            for i, (x, y) in enumerate(zip(x_test, y_test)):
+                prediction = self(x)
+                y_prediction.append(prediction.item())
+                losses.append(self.loss_function(prediction, y).item())
 
-            self.eval()
-            with torch.no_grad():
-                for i, (x, y) in enumerate(zip(x_test, y_test)):
-                    prediction = self(x)
-                    y_prediction.append(prediction.item())
-                    losses.append(self.loss_function(prediction, y).item())
+                if print_items:
+                    print("i: {}/{}, y: {:.4f}, prediction: {:.4f}, loss: {:.6f}. \t\t\t Ending in {:.2f} minutes".format(
+                        i+1, len_data,
+                        y.item(), prediction.item(), self.loss_function(prediction, y),
+                        (len_data-i+1)*(t.time()-start_time)/(i+1)/60)
+                    )
+                else:
+                    # print progress
+                    print("Progress: {:.2f}%. \t\t\t Ending in {:.2f} minutes".format(
+                        100*(i+1)/len_data, (len_data-i+1)*(t.time()-start_time)/(i+1)/60), end="\r")
 
-                    if print_each:
-                        print("i: {}/{}, x: {}, y: {}, prediction: {}, loss: {}. \t\t\t Ending in {:.2f} minutes".format(
-                            i+1, len_data,
-                            x, y, prediction, self.loss_function(prediction, y),
-                            (len_data-i+1)*(t.time()-start_time)/(i+1)/60)
-                        )
-                    else:
-                        # print progress
-                        print("Progress: {:.2f}%. \t\t\t Ending in {:.2f} minutes".format(
-                            100*(i+1)/len_data, (len_data-i+1)*(t.time()-start_time)/(i+1)/60), end="\r")
-
-            if add_to_results:
-                self.results.add_plain_attributes(
-                    validation = {
-                        'x_test': x_test,
-                        'y_test': y_test,
-                        'y_prediction': y_prediction,
-                        'losses': losses,
-                    }
-                )
+        if add_to_results:
+            self.results.add_plain_attributes(
+                validation = {
+                    'x_test': x_test.tolist(),
+                    'y_test': y_test.tolist(),
+                    'y_prediction': y_prediction,
+                    'losses': losses,
+                }
+            )
             
         if plot:
             self.plot_validation()
 
         print("Mean loss: {}, std loss: {}".format(np.mean(losses), np.std(losses)))
-
         
     @property
     def mean_loss_validation(self):
@@ -326,6 +317,9 @@ class Model(nn.Module):
     @property
     def std_loss_validation(self):
         return np.std(self.results.validation['losses'])
+    
+    def save_results(self):
+        self.results.save()
 
     def plot_validation(self, fig_size=(6,6)):
         f.plot_validation(results=self.results, fig_size=fig_size)

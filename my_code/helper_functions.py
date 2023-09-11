@@ -2,6 +2,7 @@ import pennylane as qml
 from pennylane import numpy as np
 import random, os, csv, json
 import matplotlib.pyplot as plt
+import pickle
 
 
 ###--- AMINOACIDS DATA ---###
@@ -227,7 +228,10 @@ def plot_losses_training(results, fig_size=(6,6)):
         y = getattr(results, y).history
 
         plt.figure(figsize=fig_size)
-        plt.plot(x, y)
+        if x is None: 
+            plt.plot(y)
+        else: 
+            plt.plot(x, y)
         plt.xlabel(xlabel)
         plt.ylabel('Loss')
         plt.title(title)
@@ -259,76 +263,49 @@ def save_checkpoint_json(dict_to_save:dict, file_name, folder, initial_path, day
     with open(file_name, 'w') as file:
         json.dump(dict_to_save, file, indent=4)
 
+def save_checkpoint_pickle(object, file_name, folder, initial_path, day=None):
+
+    folder = initial_path + '/checkpoints/' + folder + '/'
+    if not day is None:
+        folder = folder + day + '/'
+        if not os.path.exists(folder): #check if the folder day exists in folder
+            os.makedirs(folder)
+            print(f"Folder '{folder}' created successfully.")
+    
+    file_name = folder + file_name + '.pickle'
+
+    #dump
+    with open(file_name, 'wb') as f:
+        pickle.dump(object, f)
+
+def load_checkpoint_pickle(file_name, folder, initial_path, day=None):
+
+    folder = initial_path + '/checkpoints/' + folder + '/'
+    if not day is None:
+        folder = folder + day + '/'
+    
+    file_name = folder + file_name + '.pickle'
+
+    #load
+    with open(file_name, 'rb') as f:
+        return pickle.load(f)
 
 
-def get_name_file_to_save(name_notebook, initial_path, extension, version=None, postfix=""):
 
-    dict_extension_folder = {
-        "png": "plots", 
-        "pth": "models", 
-        "pdf": "pdfs", 
-        "ipynb": "notebooks", 
-        "txt": "txts", 
-        "version": "versions",
-        "pickle": "pickled_objects"
-    }
+###--- OTHER FUNCTIONS ---###
 
-    day = name_notebook[:4]
-    folder = initial_path + "checkpoints/" + day
-    if version is None:
-        filename = folder + "/" + dict_extension_folder[extension] + "/" + name_notebook[:-6] + postfix + "." + extension
-    else:
-        filename = folder + "/" + dict_extension_folder[extension] + "/" + name_notebook[:-6] + postfix + "_" + str(version) + "." + extension
+def get_version(initial_path, notebook): 
+    ''' look for the last version of the notebook and return the next one '''
 
-    # Check if the folder exists and if it doesn't exist, create it
-    if not os.path.exists(folder):
+    version = 0
 
-        os.makedirs(folder)
-        print(f"Folder '{folder}' created successfully.")
+    with open(initial_path + '/checkpoints/model_uuids.csv', 'r') as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+        for row in csv_reader:
+            if row['notebook'] == notebook:
+                version = int(row['version'])
 
-        for subfolder in dict_extension_folder.values():
-            os.makedirs(folder + "/" + subfolder)
-            print(f"Folder '{folder}/{subfolder}' created successfully.")
-            #create .gitkeep file
-            with open(folder + "/" + subfolder + "/.gitkeep", 'w') as file:
-                pass
-            if subfolder == "versions":
-                with open(folder + "/" + subfolder + "/.gitkeep", 'w') as file:
-                    file.write("0")
-
-
-    # check if the file exists and print a message
-    if os.path.exists(filename) and not version is None:
-        print("The file {} already exists, it will be replaced".format(filename))
-
-    return filename
-
-def read_version(name_notebook, initial_path, return_filename=False):
-
-    filename = get_name_file_to_save(name_notebook, initial_path, "version")
-
-    # if the file exists, read the version, otherwise create the file and set the version to 0
-    if os.path.exists(filename):
-        with open(filename, 'r') as file:
-            version = int(file.readline())
-    else:
-        with open(filename, 'w') as file:
-            version = 0
-            file.write(str(version))
-
-    if return_filename:
-        return version, filename
-    return version
-
-def update_version(name_notebook, initial_path):
-
-    version, filename = read_version(name_notebook, initial_path, return_filename=True)
-
-    # the version is increased by 1
-    with open(filename, 'w') as file:
-        file.write(str(version+1))
-
-    return version+1
+    return version + 1
 
    
 
