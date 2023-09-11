@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 
+from . import helper_functions as f
+
 
 ## RESULTS CLASSES ##
 
@@ -77,12 +79,13 @@ class results_item():
     def __getitem__(self, key):
         return getattr(self, key)
 
-        
-
 class Results():
     def __init__(
         self, 
         model_uuid,
+        file_name,
+        initial_path,
+        metadata,
         **attributes
     ):
         """
@@ -94,6 +97,9 @@ class Results():
             )
         """
         self.model_uuid = model_uuid
+        self.file_name = file_name
+        self.initial_path = initial_path
+        self.metadata = metadata
         for attribute, what_to_keep in attributes.items():
             # check if options is a keep object
             if not isinstance(what_to_keep, keep):
@@ -101,6 +107,27 @@ class Results():
 
             # create attribute
             setattr(self, attribute, results_item(what_to_keep))
+
+        self.attributes = {
+            'items': list(attributes.keys()),
+            'plain': [],
+        }
+
+        self.models_id = []
+
+    def __call__(self):
+        return self.__dict__
+
+    def __repr__(self):
+        return str(self.__dict__)
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+        
+    def __iter__(self):
+        items = {k: dict(v) for k, v in self.__dict__.items() if k in self.attributes['items']}
+        plain = {k: v for k, v in self.__dict__.items() if k in self.attributes['plain']}
+        return iter({**items, **plain}.items())
 
     def update(self, update_leader:str=None, **attributes):
 
@@ -124,150 +151,161 @@ class Results():
             for attribute, value in attributes.items():
                 getattr(self, attribute).update(value, update_best=best_changed)
 
-    def __call__(self):
-        return self.__dict__
-
-    def __repr__(self):
-        return str(self.__dict__)
-
-    def __getitem__(self, key):
-        return getattr(self, key)
+    def add_plain_attributes(self, **attributes):
         
-    def __iter__(self):
-        return iter({k: dict(v) for k, v in self.__dict__.items()}.items())
+        for k, v in attributes.items():            
+            #check if attribute is an object that can be converted to json
+            try:
+                json.dumps(v)
+            except TypeError:
+                raise ValueError(f"Attribute '{k}' is not an object that can be converted to json")
+            
+            setattr(self, k, v)
+            self.attributes['plain'].append(k)
 
-    def dump(self, path, metadata = {}):
-        # union of metadata and results
-        dict_to_dump = {
-            'model_uuid': str(self.model_uuid),
-            'metadata': metadata, 
-            'results': dict(self)
+    def save(self):
+        file_name, initial_path = self.file_name, self.initial_path
+        dict_to_save_csv = {
+            "model_uuid": str(self.model_uuid),
+            "file_name": file_name, 
+            'date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
-        with open(path, 'w') as f:
-            json.dump(dict_to_dump, f)
-
-    @classmethod
-    def load(cls, path):
-        with open(path, 'r') as f:
-            dict_to_load = json.load(f)['results']
-            model_uuid = uuid.UUID(json.load(f)['model_uuid'])
-
-        results_obj = cls(
-            model_uuid = model_uuid,
-            **{k: keep('last' in v, 'best' in v, 'history' in v) for k, v in dict_to_load.items()}
+        dict_to_save_json = {
+            **dict_to_save_csv,
+            'metadata': self.metadata, 
+            'results_attributes': self.attributes,
+            'results': dict(self),
+        }
+        f.save_checkpoint_csv(
+            dict_to_save_csv, 
+            file_name='results', 
+            initial_path=initial_path,
         )
-        for att, dic in dict_to_load.items():
-            for k, v in dic.items():
-                setattr(getattr(results_obj, att), k, v)
-        
-        return results_obj
-
-    def plot(self, y_attribute, x_attribute=None, title=None, xlabel=None, ylabel=None):
-
-        
-        data_y = getattr(getattr(self, y_attribute), 'history', False)
-        if data_y is False: raise ValueError(f"Attribute '{y_attribute}' does not have history")
-
-        if x_attribute is None:
-            plt.plot(data_y)
-        else:
-            data_x = getattr(getattr(self, x_attribute), 'history', False)
-            if data_x is False: raise ValueError(f"Attribute '{x_attribute}' does not have history")
-
-            plt.plot(data_x, data_y)
-            
-        plt.title(title)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.show()
-
-
-## VALIDATION CLASSES ##
-
-def computed_required(func):
-    def wrapper(self, *args, **kwargs):
-        if not self.computed:
-            raise ValueError("You need to compute the validation first. Use validation.compute(pct=pct) to compute the validation for the test dataset.")
-        return func(self, *args, **kwargs)
-    return wrapper
-
-class validation:
-    
-    def __init__(self, model, model_uuid):
-        self.model = model  
-        self.model_uuid = model_uuid
-        self.computed = False   
-
-    def compute(self, pct=1):  
-        self.pct = pct
-
-        if getattr(self, 'last_pct', 0) != self.pct:
-            self.last_pct = self.pct
-
-            # random order for test data
-            random_order = np.random.permutation(len(self.model.data.x_test))
-            x_test = self.model.data.x_test[random_order]
-            y_test = self.model.data.y_test[random_order]
-            
-            # data
-            self.x_test = x_test[:int(len(x_test)*self.pct)]
-            self.y_test = y_test[:int(len(y_test)*self.pct)]
-            self.y_prediction = []
-            self.losses = []
-
-            self.model.eval()
-            with torch.no_grad():
-                for x, y in zip(self.x_test, self.y_test):
-                    prediction = self.model(x)
-                    self.y_prediction.append(prediction.item())
-                    self.losses.append(self.model.loss_function(prediction, y).item())
-
-        self.computed = True
-
-    @computed_required
-    @property
-    def mean_loss(self):       
-        return np.mean(self.losses)
-    
-    @computed_required
-    def plot(self, fig_size=(6, 6)):
-        plt.figure(figsize=fig_size)
-        plt.scatter(self.y_test, self.y_prediction, color='r', label='Actual vs. Predicted', alpha=0.1)
-        plt.plot([np.min(self.y_test), np.max(self.y_test)], [np.min(self.y_test), np.max(self.y_test)], 'k--', lw=2, label='1:1 Line')
-        plt.xlabel('True Values')
-        plt.ylabel('Predictions')
-        plt.title('Predictions vs. True Values (mean loss: {:.4f})'.format(self.mean_loss))
-        plt.legend()
-        plt.show()
-
-    @computed_required
-    def dump(self, path):  
-        dict_to_dump = {
-            'model_uuid': str(self.model_uuid),
-            'pct': self.pct,
-            'x_test': self.x_test.tolist(),
-            'y_test': self.y_test.tolist(),
-            'y_prediction': self.y_prediction.tolist(),
-            'losses': self.losses,
-        }
-        with open(path, 'w') as f:
-            json.dump(dict_to_dump, f)
+        f.save_checkpoint_json(
+            dict_to_save_json, 
+            file_name=file_name, 
+            folder='Data',
+            initial_path=initial_path,
+            day=file_name.split('-')[0],
+        )
 
     @classmethod
-    def load(cls, path):
+    def load(cls, file_name, initial_path):
+        day = file_name.split('-')[0]
+        path = initial_path + "/checkpoints/Results/" + day + "/" + file_name + ".json"
         with open(path, 'r') as f:
             dict_to_load = json.load(f)
+            results_attributes = dict_to_load.pop('results_attributes')
+            results = dict_to_load.pop('results')
             model_uuid = uuid.UUID(dict_to_load.pop('model_uuid'))
+            metadata = dict_to_load.pop('metadata')
 
-        validation_obj = cls(
-            model = None,
+        items_to_load = {k: dict(v) for k, v in results.items() if k in results_attributes['items']}
+        plain_to_load = {k: v for k, v in results.items() if k in results_attributes['plain']}
+
+        # create results object with the attributes (items)
+        results_obj = cls(
             model_uuid = model_uuid,
+            file_name = file_name,
+            metadata = metadata,
+            **{k: keep('last' in v, 'best' in v, 'history' in v) for k, v in items_to_load.items()}
         )
-        for k, v in dict_to_load.items():
-            setattr(validation_obj, k, v)
+        for att, dic in items_to_load.items():
+            for k, v in dic.items():
+                setattr(getattr(results_obj, att), k, v)
+
+        # add plain attributes
+        results_obj.add_plain_attributes(**plain_to_load)
         
-        validation_obj.computed = True
-        return validation_obj
+        return results_obj
+    
+
+
+# ## VALIDATION CLASSES ##
+
+# def computed_required(func):
+#     def wrapper(self, *args, **kwargs):
+#         if not self.computed:
+#             raise ValueError("You need to compute the validation first. Use validation.compute(pct=pct) to compute the validation for the test dataset.")
+#         return func(self, *args, **kwargs)
+#     return wrapper
+
+# class validation:
+    
+#     def __init__(self, model):
+#         self.model = model  
+#         self.computed = False   
+
+#     def compute(self, pct=1):  
+#         self.pct = pct
+
+#         if getattr(self, 'last_pct', 0) != self.pct:
+#             self.last_pct = self.pct
+
+#             # random order for test data
+#             random_order = np.random.permutation(len(self.model.data.x_test))
+#             x_test = self.model.data.x_test[random_order]
+#             y_test = self.model.data.y_test[random_order]
+            
+#             # data
+#             self.x_test = x_test[:int(len(x_test)*self.pct)]
+#             self.y_test = y_test[:int(len(y_test)*self.pct)]
+#             self.y_prediction = []
+#             self.losses = []
+
+#             self.model.eval()
+#             with torch.no_grad():
+#                 for x, y in zip(self.x_test, self.y_test):
+#                     prediction = self.model(x)
+#                     self.y_prediction.append(prediction.item())
+#                     self.losses.append(self.model.loss_function(prediction, y).item())
+
+#         self.computed = True
+
+#     @computed_required
+#     @property
+#     def mean_loss(self):       
+#         return np.mean(self.losses)
+    
+#     @computed_required
+#     def plot(self, fig_size=(6, 6)):
+#         plt.figure(figsize=fig_size)
+#         plt.scatter(self.y_test, self.y_prediction, color='r', label='Actual vs. Predicted', alpha=0.1)
+#         plt.plot([np.min(self.y_test), np.max(self.y_test)], [np.min(self.y_test), np.max(self.y_test)], 'k--', lw=2, label='1:1 Line')
+#         plt.xlabel('True Values')
+#         plt.ylabel('Predictions')
+#         plt.title('Predictions vs. True Values (mean loss: {:.4f})'.format(self.mean_loss))
+#         plt.legend()
+#         plt.show()
+
+#     @computed_required
+#     def dump(self, path):  
+#         dict_to_dump = {
+#             'model_uuid': str(self.model_uuid),
+#             'pct': self.pct,
+#             'x_test': self.x_test.tolist(),
+#             'y_test': self.y_test.tolist(),
+#             'y_prediction': self.y_prediction.tolist(),
+#             'losses': self.losses,
+#         }
+#         with open(path, 'w') as f:
+#             json.dump(dict_to_dump, f)
+
+#     @classmethod
+#     def load(cls, path):
+#         with open(path, 'r') as f:
+#             dict_to_load = json.load(f)
+#             model_uuid = uuid.UUID(dict_to_load.pop('model_uuid'))
+
+#         validation_obj = cls(
+#             model = None,
+#             model_uuid = model_uuid,
+#         )
+#         for k, v in dict_to_load.items():
+#             setattr(validation_obj, k, v)
+        
+#         validation_obj.computed = True
+#         return validation_obj
                 
 
 ## DATA CLASSES ##
@@ -323,35 +361,38 @@ class data:
     def get_loader(self, batch_size=32, **dataloader_options):
         return DataLoader(TensorDataset(self.x_train, self.y_train), batch_size=batch_size, **dataloader_options)
     
-    def dump(self, initial_path, file_name):
-        path = initial_path + "/data/objects/jsons/" + file_name + ".json"
-        dict_to_dump = {
-            'uuid': str(self.uuid),
+    def save(self, file_name, initial_path):
+        dict_to_save_csv = {
+            "data_uuid": str(self.uuid), 
+            "file_name": file_name, 
+            "n_aminoacids": self.input_params['n_aminoacids'],
+            "description": self.input_params['description'],
+            "original_data_file": self.input_params['original_data_file'],
+            'date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        dict_to_save_json = {
+            **{k: v for k, v in dict_to_save_csv.items() if not k in self.input_params},
             'x_train': self.x_train,
             'x_test': self.x_test,
             'y_train': self.y_train,
             'y_test': self.y_test,
             'input_params': self.input_params,
         }
-        with open(path, 'w') as f:
-            json.dump(dict_to_dump, f)
-
-        # add the uuid, file name and description to the list of uuids
-        new_data = [{
-            "uuid": str(self.uuid), 
-            'date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "file_name": file_name, 
-            "n_aminoacids": self.input_params['n_aminoacids'],
-            "description": self.input_params['description'],
-            "original_data_file": self.input_params['original_data_file'],
-        },]
-        with open(initial_path + "/data/objects/uuids.json", 'a', newline='') as csv_file:
-            csv_writer = csv.DictWriter(csv_file, fieldnames=new_data[0].keys())
-            csv_writer.writerows(new_data)
+        f.save_checkpoint_csv(
+            dict_to_save_csv, 
+            file_name='data_uuids', 
+            initial_path=initial_path,
+        )
+        f.save_checkpoint_json(
+            dict_to_save_json, 
+            file_name=file_name, 
+            folder='Data',
+            initial_path=initial_path,
+        )
 
     @classmethod
     def load(cls, initial_path, file_name):
-        path = initial_path + "/data/objects/jsons/" + file_name + ".json"
+        path = initial_path + "/checkpoints/Data/" + file_name + ".json"
         with open(path, 'r') as f:
             dict_to_load = json.load(f)
         data_obj = cls()

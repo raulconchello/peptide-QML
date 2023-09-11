@@ -6,6 +6,7 @@ import datetime
 import time as t
 import numpy as np
 from copy import deepcopy
+import matplotlib.pyplot as plt
 
 # torch imports
 import torch
@@ -70,6 +71,7 @@ class Model(nn.Module):
         for io in initialization_options:
             getattr(nn.init, io['type'])(getattr(self[io['layer']], io['name']), **io['options'])
 
+    # loss properties
     @property
     def loss_train(self):
         return self.loss_function(self(self.data.x_train), self.data.y_train).item()
@@ -79,6 +81,12 @@ class Model(nn.Module):
     @property
     def loss_test(self):
         return self.loss_function(self(self.data.x_test), self.data.x_test).item()
+    
+    # name properties
+    @property
+    def file_name(self):
+        return self.day + "-" + self.name_notebook + "-" + self.version + "-model_info"
+
 
     def optimize_params(
         self,
@@ -98,6 +106,8 @@ class Model(nn.Module):
         validation_print_n = 3,
         # Stop training
         stop_training_options = {},
+        # metadata
+        metadata = {},
     ):
         
         #check if data is given and if isinstance of c.data
@@ -107,6 +117,10 @@ class Model(nn.Module):
             raise ValueError("The data object needs to be a data object.")
         self.data = data
 
+        # save metadata
+        self.metadata = metadata
+
+        # save training inputs
         self.training_inputs = {
             'loss_function': loss_function,
             'optimizer': optimizer,
@@ -136,6 +150,9 @@ class Model(nn.Module):
         # keep track of results
         self.results = c.Results(
             model_uuid = self.uuid,
+            file_name = self.file_name,
+            initial_path = self.initial_path,
+            metadata = metadata,
             loss_batch  = c.keep(last=False, best=False, history=True),
             time_batch  = c.keep(last=False, best=False, history=True),
             n_epoch     = c.keep(last=True, best=True, history=True),
@@ -218,52 +235,104 @@ class Model(nn.Module):
                 print('The loss is not changing anymore, so we stop training.')
                 break
 
-    def save_model_info(self, description, metadata={}):
+    def save_model_info(self, description):
         dict_to_save_csv = {
-            'uuid': str(self.uuid),
-            'day': self.day,            
+            'model_uuid': str(self.uuid),
+            'day': self.day,   
+            'notebook': self.name_notebook,         
             'version': self.version,
             'data_uuid': str(self.data.uuid),
-            'n_aminoacids': self.data.input_params['n_aminoacids'],
-            'name_notebook': self.name_notebook,
+            'n_aminoacids': self.data.input_params['n_aminoacids'],           
             'description': description,
             'date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
         dict_to_save_json = {
-            'model_uuid': str(self.uuid),
-            'name_notebook': self.name_notebook,
-            'initial_path': self.initial_path,
-            'model': str(self),
-            'version': self.version,
+            **dict_to_save_csv,  
+            'model': str(self), #TODO: see if I can put here the quantum node too
             'training_inputs': self.training_inputs,
-            'metadata': metadata,
+            'metadata': self.metadata,
         }
-
-
-    def validate(self, pct=1, plot=True, save=True, metadata={}):
-        self.validation = c.validation(self, model_uuid=self.uuid)
-        self.validation.compute(pct=pct)
-        if plot: self.validation.plot()
-        if save: 
-            self.save_model_info()
-            self.validation.dump(
-                path=f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="json", version=self.version, postfix="_validation"),
-                metadata=metadata
-            ) 
-        return self.validation.mean_loss
-    
-    def save_results(self, metadata = {}):
-        self.save_model_info()
-        self.results.dump(
-            f.get_name_file_to_save(self.name_notebook, self.initial_path, extension="json", version=self.version, postfix="_results"), 
-            metadata=metadata
+        f.save_checkpoint_csv(
+            dict_to_save_csv, 
+            file_name='model_uuids',
+            initial_path=self.initial_path
+        )
+        f.save_checkpoint_json(
+            dict_to_save_json, 
+            folder='Models',
+            initial_path=self.initial_path,
+            file_name=self.file_name,
+            day=self.day,
         )
 
+    def validate(self, pct=1, add_to_results=True, plot=True, print_each=False): 
 
-    def plot_losses(self):
+        if not hasattr(self, 'pct_validation') or self.pct_validation != pct:
+            self.pct_validation = pct
 
-        for x, y, title in [(None, 'loss_batch', 'Loss per batch'), ('n_epoch', 'loss_epoch', 'Loss per epoch'), ('n_epoch', 'loss_validation_epoch','Loss per epoch (validation)')]:
-            self.results.plot(x=x, y=y, title=title, xlabel=x, ylabel=y)
+            # random order for test data
+            random_order = np.random.permutation(len(self.data.x_test))
+            x_test = self.data.x_test[random_order]
+            y_test = self.data.y_test[random_order]
+
+            # data
+            x_test = x_test[:int(len(x_test)*pct)]
+            y_test = y_test[:int(len(y_test)*pct)]
+            y_prediction = []
+            losses = []
+
+            #time 
+            len_data = len(x_test)
+            start_time = t.time()
+
+            self.eval()
+            with torch.no_grad():
+                for i, (x, y) in enumerate(zip(x_test, y_test)):
+                    prediction = self(x)
+                    y_prediction.append(prediction.item())
+                    losses.append(self.loss_function(prediction, y).item())
+
+                    if print_each:
+                        print("i: {}/{}, x: {}, y: {}, prediction: {}, loss: {}. \t\t\t Ending in {:.2f} minutes".format(
+                            i+1, len_data,
+                            x, y, prediction, self.loss_function(prediction, y),
+                            (len_data-i+1)*(t.time()-start_time)/(i+1)/60)
+                        )
+                    else:
+                        # print progress
+                        print("Progress: {:.2f}%. \t\t\t Ending in {:.2f} minutes".format(
+                            100*(i+1)/len_data, (len_data-i+1)*(t.time()-start_time)/(i+1)/60), end="\r")
+
+            if add_to_results:
+                self.results.add_plain_attributes(
+                    validation = {
+                        'x_test': x_test,
+                        'y_test': y_test,
+                        'y_prediction': y_prediction,
+                        'losses': losses,
+                    }
+                )
+            
+        if plot:
+            self.plot_validation()
+
+        print("Mean loss: {}, std loss: {}".format(np.mean(losses), np.std(losses)))
+
+        
+    @property
+    def mean_loss_validation(self):
+        return np.mean(self.results.validation['losses'])
+    
+    @property
+    def std_loss_validation(self):
+        return np.std(self.results.validation['losses'])
+
+    def plot_validation(self, fig_size=(6,6)):
+        f.plot_validation(results=self.results, fig_size=fig_size)
+
+    def plot_losses(self, fig_size=(6,6)):
+        f.plot_losses_training(results=self.results, fig_size=fig_size)
+
 
 
     # def plot_parameter(self, layer, index=None, save=False):

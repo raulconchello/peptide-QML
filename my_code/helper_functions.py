@@ -1,6 +1,7 @@
 import pennylane as qml
 from pennylane import numpy as np
-import random, os, uuid
+import random, os, csv, json
+import matplotlib.pyplot as plt
 
 
 ###--- AMINOACIDS DATA ---###
@@ -200,8 +201,66 @@ def create_validating_set(X, Y, percentage=0.1):
     return X_training, Y_training, X_validating, Y_validating
 
 
+###--- PLOTS ---###
+def plot_validation(results, fig_size=(6,6)):
+    y_test = results.validation['y_test']
+    y_pred = results.validation['y_prediction']
+    mean = np.mean(results.validation['losses'])
+    std = np.std(results.validation['losses'])
+
+    plt.figure(figsize=fig_size)
+    plt.scatter(y_test, y_pred, color='r', label='Actual vs. Predicted', alpha=0.1)
+    plt.plot([np.min(y_test), np.max(y_test)], [np.min(y_test), np.max(y_test)], 'k--', lw=2, label='1:1 Line')
+    plt.xlabel('True Values')
+    plt.ylabel('Predictions')
+    plt.title('Predictions vs. True Values (avg: {:.4f}, std: {:.4f})'.format(mean, std))
+    plt.legend()
+    plt.show()
+
+def plot_losses_training(results, fig_size=(6,6)):
+    for x, y, xlabel, title in [
+        (None, 'loss_batch', 'Batch', 'Loss per batch'), 
+        ('n_epoch', 'loss_epoch', 'Epoch', 'Loss per epoch'), 
+        ('n_epoch', 'loss_validation_epoch', 'Epoch', 'Loss per epoch (validation)')
+    ]:
+        x = getattr(results, x).history if x else None
+        y = getattr(results, y).history
+
+        plt.figure(figsize=fig_size)
+        plt.plot(x, y)
+        plt.xlabel(xlabel)
+        plt.ylabel('Loss')
+        plt.title(title)
+        plt.show()
+
 
 ###--- SAVE DATA ---###
+def save_checkpoint_csv(dict_to_save:dict, file_name, initial_path):
+
+    file_path = initial_path + '/checkpoints/' + file_name + '.csv'
+
+    #add one row to the csv file
+    with open(file_path, 'a', newline='') as file:
+        csv_writer = csv.DictWriter(file, fieldnames=dict_to_save.keys())
+        csv_writer.writerows([dict_to_save])
+
+def save_checkpoint_json(dict_to_save:dict, file_name, folder, initial_path, day=None):
+
+    folder = initial_path + '/checkpoints/' + folder + '/'
+    if not day is None:
+        folder = folder + day + '/'
+        if not os.path.exists(folder): #check if the folder day exists in folder
+            os.makedirs(folder)
+            print(f"Folder '{folder}' created successfully.")
+    
+    file_name = folder + file_name + '.json'
+
+    #dump the dict in the json file
+    with open(file_name, 'w') as file:
+        json.dump(dict_to_save, file, indent=4)
+
+
+
 def get_name_file_to_save(name_notebook, initial_path, extension, version=None, postfix=""):
 
     dict_extension_folder = {
