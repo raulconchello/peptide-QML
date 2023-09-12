@@ -66,7 +66,7 @@ class Model(nn.Module):
         self.name_notebook = name_notebook
         self.initial_path = initial_path
 
-    def set_sweep_points(self, sweep_uuid, sweep_point):
+    def set_sweep_point(self, sweep_uuid, sweep_point):
         self.sweep_uuid = sweep_uuid
         self.sweep_point = sweep_point
 
