@@ -1,5 +1,3 @@
-import csv
-import json
 import uuid
 import torch
 import datetime
@@ -8,6 +6,7 @@ import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
+from itertools import product
 
 from . import helper_functions as f
 
@@ -274,4 +273,58 @@ class Data:
             file_name=file_name,
             folder='Data',
             initial_path=initial_path,
+        )
+    
+## SWEEP CLASSES ##
+class Sweep:
+    def __init__(self, name_notebook, description=None, **params):
+
+        # trace attributes
+        self.name_notebook = name_notebook
+        self.uuid = uuid.uuid4()
+        self.description = description
+        self.day = f.get_day()
+
+        # create points
+        self.params = params        
+        self.points = list(product(*params.values()))
+        self.n_points = len(self.points)
+
+        # more attributes
+        self.added_info = {k: {} for k in range(0, self.n_points)}
+
+    def __iter__(self):
+        for index, point in enumerate(self.points):
+            yield {'idx': index, **dict(zip(self.params.keys(), point))}
+
+    def get_iter_with_info(self):
+        for index, point in enumerate(self.points):
+            yield {'idx': index, **dict(zip(self.params.keys(), point)), **self.added_info[index]}
+
+    def add_info(self, idx, **info):
+        self.added_info[idx].update(info)
+
+    def get_info(self, idx):
+        return self.added_info[idx]
+    
+    def save(self, file_name, initial_path):
+        dict_to_save_csv = {
+            "sweep_uuid": str(self.uuid), 
+            "file_name": file_name, 
+            "name_notebook": self.name_notebook,
+            "params": str(list(self.params.keys())),
+            "description": self.description,
+            'date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        f.save_csv(
+            dict_to_save_csv, 
+            file_name='sweep_uuids', 
+            initial_path=initial_path,
+        )
+        f.save_pickle(
+            self,
+            file_name=file_name,
+            folder='Sweeps',
+            initial_path=initial_path,
+            day=self.day,
         )

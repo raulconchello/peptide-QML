@@ -123,7 +123,7 @@ class Model(nn.Module):
             'validation_print_n': validation_print_n,
             'stop_training_options': stop_training_options,
         }
-        self.version, self.uuid, self.day = f.get_version(self.initial_path, self.name_notebook), uuid.uuid4(), datetime.datetime.now().strftime("%m%d")
+        self.version, self.uuid, self.day = f.get_version(self.initial_path, self.name_notebook), uuid.uuid4(), f.get_day()
 
         # time
         start_time = t.time()

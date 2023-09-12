@@ -3,6 +3,7 @@ from pennylane import numpy as np
 import random, os, csv, json
 import matplotlib.pyplot as plt
 import pickle
+import datetime
 
 
 ###--- AMINOACIDS DATA ---###
@@ -276,7 +277,7 @@ def save_pickle(object, file_name, folder, initial_path, day=None):
 
     #dump
     with open(file_name, 'wb') as f:
-        pickle.dump(object, f)
+        pickle.dump(object, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 def load_pickle(file_name, folder, initial_path, day=None):
 
@@ -307,6 +308,8 @@ def get_version(initial_path, notebook):
 
     return version + 1
 
+def get_day():
+    return datetime.datetime.now().strftime("%m%d")
    
 
 
