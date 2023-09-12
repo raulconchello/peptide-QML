@@ -285,7 +285,7 @@ class Sweep:
         self.description = description
         self.day = f.get_day()
         self.initial_path = initial_path
-        self.version = f.get_version(file='sweep_uuids')
+        self.version = f.get_version(initial_path, name_notebook, file='sweep_uuids')
 
         # create points
         self.params = params        
