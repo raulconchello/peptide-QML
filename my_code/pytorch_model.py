@@ -239,13 +239,13 @@ class Model(nn.Module):
             'data_uuid': str(self.data.uuid),
             'n_aminoacids': self.data.input_params['n_aminoacids'],           
             'description': description,
+            'metadata': self.metadata,
             'date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
         dict_to_save_json = {
             **dict_to_save_csv,  
             'model': str(self), #TODO: see if I can put here the quantum node too
             'training_inputs': self.training_inputs,
-            'metadata': self.metadata,
         }
         f.save_csv(
             dict_to_save_csv, 
