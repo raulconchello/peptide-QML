@@ -317,7 +317,7 @@ class circuit:
 
     def draw(self, size=(50,3)):
 
-        inputs = np.array([0 for _ in range(self.input_shape[0])])
+        inputs = np.array([1 for _ in range(self.input_shape[0])])
         weights = tuple(np.arange(shape[0]) for shape in self.weights_shape.values())
 
         qml.drawer.use_style("black_white")
