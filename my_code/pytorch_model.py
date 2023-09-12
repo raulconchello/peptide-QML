@@ -66,6 +66,10 @@ class Model(nn.Module):
         self.name_notebook = name_notebook
         self.initial_path = initial_path
 
+    def set_sweep_points(self, sweep_uuid, sweep_point):
+        self.sweep_uuid = sweep_uuid
+        self.sweep_point = sweep_point
+
     def initialize_params(self, initialization_options= [{}]):
 
         self.initialization_options = initialization_options
@@ -239,6 +243,8 @@ class Model(nn.Module):
             'data_uuid': str(self.data.uuid),
             'n_aminoacids': self.data.input_params['n_aminoacids'],           
             'description': description,
+            'sweep_uuid': str(self.sweep_uuid) if hasattr(self, 'sweep_uuid') else None,
+            'sweep_point': {k:str(v) for k,v in self.sweep_point.items()} if hasattr(self, 'sweep_point') else None,
             'metadata': self.metadata,
             'date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }

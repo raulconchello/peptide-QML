@@ -295,12 +295,12 @@ def load_pickle(file_name, folder, initial_path, day=None):
 
 ###--- OTHER FUNCTIONS ---###
 
-def get_version(initial_path, notebook): 
+def get_version(initial_path, notebook, file='model_uuids'): 
     ''' look for the last version of the notebook and return the next one '''
 
     version = 0
 
-    with open(initial_path + '/saved/model_uuids.csv', 'r') as csv_file:
+    with open(initial_path + '/saved/' + file + '.csv', 'r') as csv_file:
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
             if row['notebook'] == notebook:

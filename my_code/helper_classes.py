@@ -1,12 +1,12 @@
 import uuid
+import time
 import torch
 import datetime
-import numpy as np
-import matplotlib.pyplot as plt
 
+from itertools import product
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
-from itertools import product
+
 
 from . import helper_functions as f
 
@@ -277,57 +277,73 @@ class Data:
     
 ## SWEEP CLASSES ##
 class Sweep:
-    def __init__(self, name_notebook, description=None, **params):
+    def __init__(self, name_notebook, initial_path, description=None, **params):
 
         # trace attributes
         self.name_notebook = name_notebook
         self.uuid = uuid.uuid4()
         self.description = description
         self.day = f.get_day()
+        self.initial_path = initial_path
+        self.version = f.get_version(file='sweep_uuids')
 
         # create points
         self.params = params        
-        self.points = list(product(*params.values()))
-        self.n_points = len(self.points)
+        self.list_points = list(product(*params.values()))
+        self.n_points = len(self.list_points)
 
         # more attributes
-        self.added_info = {k: {} for k in range(0, self.n_points)}
+        self.added_data = {k: {} for k in range(0, self.n_points)}
+        self.start_time = time.time()
 
-    def __iter__(self):
-        for index, point in enumerate(self.points):
+    @property
+    def points(self):
+        for index, point in enumerate(self.list_points):
             yield {'idx': index, **dict(zip(self.params.keys(), point))}
 
-    def get_iter_with_info(self):
-        for index, point in enumerate(self.points):
-            yield {'idx': index, **dict(zip(self.params.keys(), point)), **self.added_info[index]}
+    @property
+    def points_w_data(self):
+        for index, point in enumerate(self.list_points):
+            yield {'idx': index, **dict(zip(self.params.keys(), point)), **self.added_data[index]}
 
-    def add_info(self, idx, **info):
-        self.added_info[idx].update(info)
+    @property
+    def file_name(self):
+        return f"{self.name_notebook}-{self.version}"
 
-    def get_info(self, idx):
-        return self.added_info[idx]
+    def __iter__(self):
+        return iter(self.points)
+
+    def add_data(self, idx, **info):
+        self.added_data[idx].update(info)
+
+    def get_data(self, idx):
+        return self.added_data[idx]
     
-    def save(self, file_name, initial_path):
+    def save(self, csv=True, pickle=True):
         dict_to_save_csv = {
-            "sweep_uuid": str(self.uuid), 
-            "file_name": file_name, 
-            "name_notebook": self.name_notebook,
+            "sweep_uuid": str(self.uuid),
+            "day": self.day,
+            "notebook": self.name_notebook,
+            'version': self.version,
             "params": str(list(self.params.keys())),
+            "ranges": str(list(self.params.values())),
             "description": self.description,
             'date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
-        f.save_csv(
-            dict_to_save_csv, 
-            file_name='sweep_uuids', 
-            initial_path=initial_path,
-        )
-        f.save_pickle(
-            self,
-            file_name=file_name,
-            folder='Sweeps',
-            initial_path=initial_path,
-            day=self.day,
-        )
+        if csv:
+            f.save_csv(
+                dict_to_save_csv, 
+                file_name='sweep_uuids', 
+                initial_path=self.initial_path,
+            )
+        if pickle:
+            f.save_pickle(
+                self,
+                file_name=self.file_name,
+                folder='Sweeps',
+                initial_path=self.initial_path,
+                day=self.day,
+            )
 
     @classmethod
     def load(cls, initial_path, day, file_name):
@@ -337,3 +353,16 @@ class Sweep:
             initial_path=initial_path,
             day=day,
         )
+    
+    def print_sweep_status(self, idx):
+
+        print(" --- SWEEP POINT {}/{} --- ".format(idx, self.n_points))
+
+        #time
+        if idx > 0:
+            estimated_remaining_time = (time.time() - self.start_time) / idx * (self.n_points - idx) 
+            hours, remainder = divmod(estimated_remaining_time, 3600) 
+            minutes, seconds = divmod(remainder, 60)
+
+            # Print remaining time 
+            print(' --- time reamining: {:0>2}:{:0>2}:{:05.2f} --- '.format(int(hours),int(minutes),seconds)) 
