@@ -356,7 +356,7 @@ class Sweep:
     
     def print_sweep_status(self, idx):
 
-        print(" --- SWEEP POINT {}/{} --- ".format(idx, self.n_points))
+        print("\n\n --- SWEEP POINT {}/{}: {} --- \n".format(idx+1, self.n_points, self.list_points[idx]))
 
         #time
         if idx > 0:
@@ -365,4 +365,7 @@ class Sweep:
             minutes, seconds = divmod(remainder, 60)
 
             # Print remaining time 
-            print(' --- time reamining: {:0>2}:{:0>2}:{:05.2f} --- '.format(int(hours),int(minutes),seconds)) 
+            print(' --- time reamining: {:0>2}:{:0>2}:{:05.2f} --- \n'.format(int(hours),int(minutes),seconds)) 
+        
+        else:
+            print(' --- parameters sweeping: {} --- \n'.format(list(self.params.keys())))

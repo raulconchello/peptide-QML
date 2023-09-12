@@ -46,6 +46,9 @@ def computed_required(func):
 
 class Model(nn.Module):
 
+    def __str__(self):
+        return super().__str__() + ";\nQuantum layer: " + str(getattr(self, 'quantum_layer', None))
+
     # loss properties
     @property
     def loss_train(self):
