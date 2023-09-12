@@ -13,10 +13,24 @@ class parts:
             self.n_qubits = n_qubits
 
     class AngleEmbedding(Embedding):
+
+        def __init__(self, n_qubits):
+            super().__init__(n_qubits)
+            self.input_size = n_qubits
         
         # when called it returns the circuit
         def __call__(self, input):        
             qml.AngleEmbedding(input, wires=range(self.n_qubits))
+
+    class AmplitudeEmbedding(Embedding):
+            
+        def __init__(self, n_qubits):
+            super().__init__(n_qubits)
+            self.input_size = 2**n_qubits
+        
+        # when called it returns the circuit
+        def __call__(self, input):        
+            qml.AmplitudeEmbedding(input, wires=range(self.n_qubits), normalize=True)
 
 
     # Ansatzes
@@ -220,7 +234,7 @@ class circuit:
         self.wrapper_qlayer = wrapper_qlayer
 
         # circuit
-        self.input_shape = (n_qubits*(1+embedding_n_layers*different_inputs_per_layer),)
+        self.input_shape = (self.embedding.input_size*(1+embedding_n_layers*different_inputs_per_layer),)
         def _circuit(inputs, block_weights, final_weights, embedding_weights=None):
             
             #embedding   
