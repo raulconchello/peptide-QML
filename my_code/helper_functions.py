@@ -239,18 +239,18 @@ def plot_losses_training(results, fig_size=(6,6)):
 
 
 ###--- SAVE DATA ---###
-def save_checkpoint_csv(dict_to_save:dict, file_name, initial_path):
+def save_csv(dict_to_save:dict, file_name, initial_path):
 
-    file_path = initial_path + '/checkpoints/' + file_name + '.csv'
+    file_path = initial_path + '/saved/' + file_name + '.csv'
 
     #add one row to the csv file
     with open(file_path, 'a', newline='') as file:
         csv_writer = csv.DictWriter(file, fieldnames=dict_to_save.keys())
         csv_writer.writerows([dict_to_save])
 
-def save_checkpoint_json(dict_to_save:dict, file_name, folder, initial_path, day=None):
+def save_json(dict_to_save:dict, file_name, folder, initial_path, day=None):
 
-    folder = initial_path + '/checkpoints/' + folder + '/'
+    folder = initial_path + '/saved/' + folder + '/'
     if not day is None:
         folder = folder + day + '/'
         if not os.path.exists(folder): #check if the folder day exists in folder
@@ -263,9 +263,9 @@ def save_checkpoint_json(dict_to_save:dict, file_name, folder, initial_path, day
     with open(file_name, 'w') as file:
         json.dump(dict_to_save, file, indent=4)
 
-def save_checkpoint_pickle(object, file_name, folder, initial_path, day=None):
+def save_pickle(object, file_name, folder, initial_path, day=None):
 
-    folder = initial_path + '/checkpoints/' + folder + '/'
+    folder = initial_path + '/saved/' + folder + '/'
     if not day is None:
         folder = folder + day + '/'
         if not os.path.exists(folder): #check if the folder day exists in folder
@@ -278,9 +278,9 @@ def save_checkpoint_pickle(object, file_name, folder, initial_path, day=None):
     with open(file_name, 'wb') as f:
         pickle.dump(object, f)
 
-def load_checkpoint_pickle(file_name, folder, initial_path, day=None):
+def load_pickle(file_name, folder, initial_path, day=None):
 
-    folder = initial_path + '/checkpoints/' + folder + '/'
+    folder = initial_path + '/saved/' + folder + '/'
     if not day is None:
         folder = folder + day + '/'
     
@@ -299,7 +299,7 @@ def get_version(initial_path, notebook):
 
     version = 0
 
-    with open(initial_path + '/checkpoints/model_uuids.csv', 'r') as csv_file:
+    with open(initial_path + '/saved/model_uuids.csv', 'r') as csv_file:
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
             if row['notebook'] == notebook:

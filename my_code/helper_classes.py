@@ -171,12 +171,12 @@ class Results():
             "file_name": file_name, 
             'date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
-        f.save_checkpoint_csv(
+        f.save_csv(
             dict_to_save_csv, 
             file_name='results', 
             initial_path=initial_path,
         )
-        f.save_checkpoint_pickle(
+        f.save_pickle(
             self,
             file_name=file_name, 
             folder='Results',
@@ -186,7 +186,7 @@ class Results():
 
     @classmethod
     def load(cls, day, file_name, initial_path):   
-        return f.load_checkpoint_pickle(
+        return f.load_pickle(
             file_name=file_name,
             folder='Results',
             initial_path=initial_path,
@@ -256,12 +256,12 @@ class Data:
             "original_data_file": self.input_params['original_data_file'],
             'date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
-        f.save_checkpoint_csv(
+        f.save_csv(
             dict_to_save_csv, 
             file_name='data_uuids', 
             initial_path=initial_path,
         )
-        f.save_checkpoint_pickle(
+        f.save_pickle(
             self,
             file_name=file_name,
             folder='Data',
@@ -270,7 +270,7 @@ class Data:
 
     @classmethod
     def load(cls, initial_path, file_name):
-        return f.load_checkpoint_pickle(
+        return f.load_pickle(
             file_name=file_name,
             folder='Data',
             initial_path=initial_path,

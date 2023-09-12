@@ -247,12 +247,12 @@ class Model(nn.Module):
             'training_inputs': self.training_inputs,
             'metadata': self.metadata,
         }
-        f.save_checkpoint_csv(
+        f.save_csv(
             dict_to_save_csv, 
             file_name='model_uuids',
             initial_path=self.initial_path
         )
-        f.save_checkpoint_json(
+        f.save_json(
             dict_to_save_json, 
             folder='Models',
             initial_path=self.initial_path,
