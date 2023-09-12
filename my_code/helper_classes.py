@@ -328,3 +328,12 @@ class Sweep:
             initial_path=initial_path,
             day=self.day,
         )
+
+    @classmethod
+    def load(cls, initial_path, day, file_name):
+        return f.load_pickle(
+            file_name=file_name,
+            folder='Sweeps',
+            initial_path=initial_path,
+            day=day,
+        )
