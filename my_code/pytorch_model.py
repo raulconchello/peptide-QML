@@ -64,6 +64,9 @@ class Model(nn.Module):
     @property
     def file_name(self):
         return self.name_notebook + "-" + str(self.version)
+    
+    def set_quantum_layer(self, quantum_layer):
+        self.quantum_layer = quantum_layer
 
     def set_name_and_path(self, name_notebook, initial_path):
         self.name_notebook = name_notebook
