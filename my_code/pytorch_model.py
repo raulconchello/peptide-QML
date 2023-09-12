@@ -253,7 +253,7 @@ class Model(nn.Module):
         }
         dict_to_save_json = {
             **dict_to_save_csv,  
-            'model': str(self), #TODO: see if I can put here the quantum node too
+            'model': str(self), 
             'training_inputs': self.training_inputs,
         }
         f.save_csv(

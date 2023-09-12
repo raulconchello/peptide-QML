@@ -290,6 +290,7 @@ class circuit:
         string += f'\t\tembedding: {self.embedding}\n'
         string += f'\t\tembedding_ansatz: {self.embedding_ansatz}\n'
         string += f'\t\tblock_ansatz: {self.block_ansatz}\n'
+        string += f'\t\tfinal_ansatz: {self.final_ansatz}\n'
         string += f'\t\tmeasurement: {self.measurement}\n'
         string += f'\t\tembedding_n_layers: {self.n_layers[0]}\n'
         string += f'\t\tdifferent_inputs_per_layer: {self.different_inputs_per_layer}\n'
@@ -309,7 +310,6 @@ class circuit:
         fig, ax = qml.draw_mpl(self.qnode, expansion_strategy="device")(inputs, *weights)
         fig.set_size_inches(size)
 
-        
         
 
         
