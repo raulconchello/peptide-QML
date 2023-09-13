@@ -298,13 +298,38 @@ class Sweep:
 
     @property
     def points(self):
+        """
+        Returns a generator with a dict for each point.
+        Attributes of each dict: idx, param1, param2, ..., paramN
+        Values of each dict: index, value1, value2, ..., valueN
+        """
         for index, point in enumerate(self.list_points):
             yield {'idx': index, **dict(zip(self.params.keys(), point))}
 
     @property
     def points_w_data(self):
+        """
+        Returns a generator with a dict for each point. With the added data. 
+        Attributes of each dict: idx, param1, param2, ..., paramN, key_data1, key_data2, ..., key_dataN
+        Values of each dict: index, value1, value2, ..., valueN, value_data1, value_data2, ..., value_dataN
+
+        Some point may not have added data.
+        """
         for index, point in enumerate(self.list_points):
             yield {'idx': index, **dict(zip(self.params.keys(), point)), **self.added_data[index]}
+
+    @property
+    def points_left(self):
+        """
+        Returns a generator with a dict for each point that has not been added data.
+        Attributes of each dict: idx, param1, param2, ..., paramN
+        Values of each dict: index, value1, value2, ..., valueN
+
+        Useful to continue a sweep that was stopped.
+        """
+        for index, point in enumerate(self.list_points):
+            if not self.added_data[index]:
+                yield {'idx': index, **dict(zip(self.params.keys(), point))}
 
     @property
     def file_name(self):
