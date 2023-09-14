@@ -2,6 +2,7 @@ import uuid
 import time
 import torch
 import datetime
+import numpy as np
 
 from itertools import product
 from sklearn.model_selection import train_test_split
@@ -330,6 +331,24 @@ class Sweep:
         for index, point in enumerate(self.list_points):
             if not self.added_data[index]:
                 yield {'idx': index, **dict(zip(self.params.keys(), point))}
+
+    @property
+    def lists(self):
+        """
+        Returns a dict with a list for each parameter.
+        """
+        lists = {k: [] for k in tuple(self.points_w_data)[0].keys()}
+        for point in self.points_w_data:
+            for key, value in point.items():
+                lists[key].append(value)
+        return lists
+    
+    @property
+    def arrays(self):
+        """
+        Returns a dict with a array for each parameter.
+        """
+        return {k: np.array(v) for k, v in self.lists.items()}
 
     @property
     def file_name(self):
