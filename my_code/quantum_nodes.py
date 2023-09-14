@@ -30,7 +30,7 @@ class parts:
         
         # when called it returns the circuit
         def __call__(self, input):        
-            qml.AmplitudeEmbedding(input, wires=range(self.n_qubits), normalize=True)
+            qml.AmplitudeEmbedding(input, wires=range(self.n_qubits), normalize=True, pad_with=0)
 
 
     # Ansatzes
