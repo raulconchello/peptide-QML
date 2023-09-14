@@ -72,9 +72,10 @@ class Model(nn.Module):
         self.name_notebook = name_notebook
         self.initial_path = initial_path
 
-    def set_sweep_point(self, sweep_uuid, sweep_point):
+    def set_sweep_point(self, sweep_uuid, sweep_point, day):
         self.sweep_uuid = sweep_uuid
         self.sweep_point = sweep_point
+        self.day = day
 
     def initialize_params(self, initialization_options= [{}]):
 
@@ -133,7 +134,7 @@ class Model(nn.Module):
             'validation_print_n': validation_print_n,
             'stop_training_options': stop_training_options,
         }
-        self.version, self.uuid, self.day = f.get_version(self.initial_path, self.name_notebook), uuid.uuid4(), f.get_day()
+        self.version, self.uuid, self.day = f.get_version(self.initial_path, self.name_notebook), uuid.uuid4(), getattr(self, 'day', f.get_day())
 
         # time
         start_time = t.time()
