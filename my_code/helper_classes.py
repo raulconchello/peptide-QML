@@ -349,6 +349,15 @@ class Sweep:
         Returns a dict with a array for each parameter.
         """
         return {k: np.array(v) for k, v in self.lists.items()}
+    
+    @property
+    def arrays_trimmed(self):
+        """
+        Returns a dict with a array for each parameter. 
+        The arrays are trimmed to the minimum length.
+        Giving just the data that has been added.
+        """
+        return {k: v[:min([len(v) for v in self.arrays.values()])] for k, v in self.arrays.items()}
 
     @property
     def file_name(self):
