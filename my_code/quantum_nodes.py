@@ -32,6 +32,26 @@ class parts:
         def __call__(self, input):        
             qml.AmplitudeEmbedding(input, wires=range(self.n_qubits), normalize=True, pad_with=0)
 
+    class IQPEmbedding(part):
+            
+        def __init__(self, options={}):
+            self.options = options
+
+        def __call__(self, n_qubits):        
+            return self.__IQPEmbedding(n_qubits, self.options)
+        
+        class __IQPEmbedding:                    
+            def __init__(self, n_qubits, options):
+                self.n_qubits = n_qubits
+                self.options = options
+                self.input_size = n_qubits
+
+            def __call__(self, input):
+                qml.IQPEmbedding(input, wires=range(self.n_qubits), **self.options)
+
+            def __str__(self):
+                return f"IQPEmbedding({self.options})"
+
 
     # Ansatzes
     class Ansatz(part):
