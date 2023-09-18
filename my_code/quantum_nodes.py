@@ -248,7 +248,10 @@ class parts:
                 return [qml.expval(self.gate(i)) for i in self.qubits]
 
             def __str__(self):
-                return f"Measurement('{self.str_gate}', {self.which_qubit})"
+                if self.which_qubit == 'all':
+                    return f"Measurement('{self.str_gate}', 'all')"
+                else:
+                    return f"Measurement('{self.str_gate}', {self.which_qubit})"
             
   
 
