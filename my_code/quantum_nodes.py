@@ -98,6 +98,34 @@ class parts:
                     # ZZ rotation for pair       
                     qml.CNOT(wires=pair)
 
+        def inv(self):
+            return parts.Ansatz_11_inv(self.n_qubits)
+
+    class Ansatz_11_inv(Ansatz_11):
+
+        def __call__(self, weights):
+            
+            # split weights
+            w = self._split_weights(weights)
+
+            # number of qubits
+            n_qubits = self.n_qubits
+
+            # apply roations and CNOTs to each pair of qubits
+            for i in [1,0]:
+                for j in range(i, n_qubits-i, 2): 
+
+                    pair = [j, j+1]
+
+                    # ZZ rotation for pair       
+                    qml.CNOT(wires=pair).adjoint()
+
+                    # rotations for each qubit
+                    for k in pair:
+                        qml.RZ(-w[i][k-i,1], wires=k).adjoint()
+                        qml.RY(-w[i][k-i,0], wires=k).adjoint()
+
+
     class Ansatz_X(Ansatz):
 
         def __init__(self, n_qubits):
