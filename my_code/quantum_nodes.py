@@ -243,8 +243,6 @@ class parts:
 
         
             
-
-
 class circuit:
 
     def __init__(
@@ -372,6 +370,44 @@ class circuit:
         fig, ax = qml.draw_mpl(self.qnode, expansion_strategy="device")(inputs, *weights)
         fig.set_size_inches(size)
 
+        
+class inverse_circuit(circuit):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        embedding_n_layers, block_n_layers = self.n_layers
+
+        def _circuit(inputs, block_weights, final_weights, embedding_weights=None):
+
+            #embedding   
+            if embedding_weights is None:                
+                self.embedding(inputs)
+
+            else:            
+                embedding_weights = np.split(embedding_weights, embedding_n_layers)
+
+                if different_inputs_per_layer:
+                    
+                    inputs = np.split(inputs, embedding_n_layers+1, axis=len(inputs.shape)-1)
+                    
+                    self.embedding(inputs[0])     
+                    for i in range(embedding_n_layers):  
+                        self.embedding_ansatz( embedding_weights[i] )
+                        self.embedding(inputs[i+1])
+                else:
+                    self.embedding(inputs)   
+                    for i in range(embedding_n_layers):  
+                        self.embedding_ansatz( embedding_weights[i] )
+                        self.embedding(inputs)
+   
+            #block
+            self.final_ansatz.inv()( final_weights )
+            block_weights = np.split(block_weights, block_n_layers)
+            for i in range(block_n_layers):
+                self.block_ansatz.inv()( block_weights[i] )
+
+            #measurement
+            return self.measurement()
         
 
         
