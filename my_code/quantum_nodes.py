@@ -22,6 +22,16 @@ class parts:
         def __call__(self, input):        
             qml.AngleEmbedding(input, wires=range(self.n_qubits))
 
+        def inv(self):
+            return parts.AngleEmbedding_inv(self.n_qubits)
+        
+    class AngleEmbedding_inv(AngleEmbedding):
+
+        def __call__(self):
+            return [qml.expval(qml.PauliZ(i)) for i in range(self.n_qubits)]
+        
+
+
     class AmplitudeEmbedding(Embedding):
             
         def __init__(self, n_qubits):
@@ -113,17 +123,17 @@ class parts:
 
             # apply roations and CNOTs to each pair of qubits
             for i in [1,0]:
-                for j in range(i, n_qubits-i, 2): 
+                for j in list(range(i, n_qubits-i, 2))[::-1]: 
 
                     pair = [j, j+1]
 
                     # ZZ rotation for pair       
-                    qml.CNOT(wires=pair).adjoint()
+                    qml.adjoint(qml.CNOT(wires=pair))
 
                     # rotations for each qubit
-                    for k in pair:
-                        qml.RZ(-w[i][k-i,1], wires=k).adjoint()
-                        qml.RY(-w[i][k-i,0], wires=k).adjoint()
+                    for k in pair[::-1]:                  
+                        qml.adjoint(qml.RZ(w[i][k-i,1], wires=k))
+                        qml.adjoint(qml.RY(w[i][k-i,0], wires=k))
 
 
     class Ansatz_X(Ansatz):
@@ -217,13 +227,13 @@ class parts:
             self.str_gate = gate
 
         def __call__(self, n_qubits):       
-            return self.__exp_gate(self.str_gate, self.dict_gate, n_qubits, self.which_qubit)
+            return self.__exp_gate(self.str_gate, n_qubits, self.which_qubit)
 
         class __exp_gate:
-            def __init__(self, str_gate, dict_gate, n_qubits, which_qubit):
+            def __init__(self, str_gate, n_qubits, which_qubit):
                 
                 self.str_gate = str_gate
-                self.gate = dict_gate[str_gate]
+                self.gate = parts.Measurement.dict_gate[str_gate]
                 self.n_qubits = n_qubits
                 self.which_qubit = which_qubit
 
@@ -239,6 +249,7 @@ class parts:
 
             def __str__(self):
                 return f"Measurement('{self.str_gate}', {self.which_qubit})"
+            
   
 
         
@@ -312,6 +323,7 @@ class circuit:
 
             #measurement
             return self.measurement()
+            # return qml.state()
 
         if embedding_n_layers==0:
             def circuit(inputs, block_weights, final_weights): 
@@ -361,53 +373,65 @@ class circuit:
 
         return string
 
-    def draw(self, size=(50,3)):
+    def draw(self, size=(50,3), inverse=False):
 
         inputs = np.array([1 for _ in range(self.input_shape[0])])
         weights = tuple(np.arange(shape[0]) for shape in self.weights_shape.values())
 
         qml.drawer.use_style("black_white")
-        fig, ax = qml.draw_mpl(self.qnode, expansion_strategy="device")(inputs, *weights)
+        if inverse:
+            outputs_measured = np.array([1 for _ in self.measurement.qubits])
+            fig, ax = qml.draw_mpl(self.qnode_inverse, expansion_strategy="device")(outputs_measured, *weights)
+        else:
+            fig, ax = qml.draw_mpl(self.qnode, expansion_strategy="device")(inputs, *weights)
         fig.set_size_inches(size)
 
+    @property
+    def qnode_inverse(self):
+        return qml.QNode(func=self.inverse_circuit, device=self.dev)
+
+    def inverse_circuit(self, output_state, block_weights, final_weights):
+
+        _, block_n_layers = self.n_layers
+
         
-class inverse_circuit(circuit):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        qml.QubitStateVector(output_state, wires=range(self.n_qubits))
 
-        embedding_n_layers, block_n_layers = self.n_layers
+        #block
+        self.final_ansatz.inv()( final_weights )
+        block_weights = np.split(block_weights, block_n_layers)
+        for i in list(range(block_n_layers))[::-1]:
+            self.block_ansatz.inv()( block_weights[i] )
 
-        def _circuit(inputs, block_weights, final_weights, embedding_weights=None):
+        #measurement
+        return self.embedding.inv()()
 
-            #embedding   
-            if embedding_weights is None:                
-                self.embedding(inputs)
+    # def inverse_circuit(self, inputs, block_weights, final_weights):
 
-            else:            
-                embedding_weights = np.split(embedding_weights, embedding_n_layers)
+    #     _, block_n_layers = self.n_layers
 
-                if different_inputs_per_layer:
-                    
-                    inputs = np.split(inputs, embedding_n_layers+1, axis=len(inputs.shape)-1)
-                    
-                    self.embedding(inputs[0])     
-                    for i in range(embedding_n_layers):  
-                        self.embedding_ansatz( embedding_weights[i] )
-                        self.embedding(inputs[i+1])
-                else:
-                    self.embedding(inputs)   
-                    for i in range(embedding_n_layers):  
-                        self.embedding_ansatz( embedding_weights[i] )
-                        self.embedding(inputs)
-   
-            #block
-            self.final_ansatz.inv()( final_weights )
-            block_weights = np.split(block_weights, block_n_layers)
-            for i in range(block_n_layers):
-                self.block_ansatz.inv()( block_weights[i] )
+    #     # #embedding
+    #     # self.embedding(inputs)
 
-            #measurement
-            return self.measurement()
+    #     #block
+    #     block_weights = np.split(block_weights, block_n_layers)
+    #     for i in range(block_n_layers):
+    #         self.block_ansatz( block_weights[i] )
+    #     self.final_ansatz( final_weights )
+
+    #     #block inverse
+    #     self.final_ansatz.inv()( final_weights )        
+    #     for i in list(range(block_n_layers))[::-1]:
+    #         self.block_ansatz.inv()( block_weights[i] )
+
+    #     #measurement
+    #     return self.embedding.inv()()
+
+
+        
+
+        
+
         
 
         
