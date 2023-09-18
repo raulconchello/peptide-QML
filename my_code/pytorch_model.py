@@ -69,6 +69,11 @@ class Model(nn.Module):
     def file_name(self):
         return self.name_notebook + "-" + str(self.version)
     
+    # number of parameters
+    @property
+    def n_parameters(self):
+        return sum([p.numel() for p in self.parameters()])
+    
     def set_quantum_layer(self, quantum_layer):
         self.quantum_layer = quantum_layer
 
