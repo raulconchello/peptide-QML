@@ -339,7 +339,7 @@ class circuit:
 
         else:
             def circuit(inputs, embedding_weights, block_weights, final_weights):
-                return _circuit(inputs, block_weights, embedding_weights, final_weights)
+                return _circuit(inputs, block_weights, final_weights, embedding_weights=embedding_weights)
             
             self.weights_shape = {
                 'embedding_weights': (embedding_n_layers*self.embedding_ansatz.weights_size,),
