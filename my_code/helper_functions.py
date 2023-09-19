@@ -238,6 +238,42 @@ def plot_losses_training(results, fig_size=(6,6)):
         plt.title(title)
         plt.show()
 
+COLORS = [
+    (0.121, 0.466, 0.705),  # Blue
+    (1.0, 0.498, 0.054),    # Orange
+    (0.172, 0.627, 0.172),  # Green
+    (0.839, 0.153, 0.157),  # Red
+    (0.580, 0.404, 0.741),  # Purple
+    (0.549, 0.337, 0.294),  # Brown
+    (0.890, 0.466, 0.760),  # Pink
+    (0.498, 0.498, 0.498),  # Grey
+    (0.737, 0.741, 0.133),  # Olive Green
+    (0.090, 0.745, 0.812),  # Cyan
+    (0.682, 0.780, 0.909),  # Lighter Blue
+    (1.0, 0.733, 0.471),    # Lighter Orange
+    (0.596, 0.875, 0.541),  # Lighter Green
+    (1.0, 0.598, 0.6),      # Lighter Red
+    (0.772, 0.690, 0.835),  # Lighter Purple
+    (0.768, 0.611, 0.580),  # Lighter Brown
+    (0.969, 0.714, 0.824),  # Light Pink
+    (0.780, 0.780, 0.780),  # Light Grey
+    (0.858, 0.859, 0.552),  # Light Olive Green
+    (0.619, 0.854, 0.898)   # Light Cyan
+]
+
+def plot_w_poly_fit(x, y, degree=2, options_data={}, options_fit={}):
+    plt.plot(x, y, **options_data)
+    z = np.polyfit(x, y, degree)
+    p = np.poly1d(z)
+    x_pred = np.linspace(min(x), max(x), 100)
+    plt.plot(x_pred, p(x_pred), **options_fit)
+
+###--- STRINGS ---###
+def replace_string(string, replace):
+    for old, new in replace:
+        string = string.replace(old, new)
+    return string
+
 
 ###--- SAVE DATA ---###
 def save_csv(dict_to_save:dict, file_name, initial_path):

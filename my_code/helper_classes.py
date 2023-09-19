@@ -3,6 +3,7 @@ import time
 import torch
 import datetime
 import numpy as np
+import matplotlib.pyplot as plt
 
 from itertools import product
 from sklearn.model_selection import train_test_split
@@ -422,3 +423,35 @@ class Sweep:
         
         else:
             print(' --- parameters sweeping: {} \n'.format(list(self.params.keys())))
+
+    def plot(self, x_key, y_key, legend_keys=[], fit_degree=2, replace=[], figsize=(10,6), colors=f.COLORS):
+
+        arrays = self.arrays_trimmed
+
+        plt.figure(figsize=figsize)
+        for color, dict_values_legend in zip(colors, [{legend_keys[i]: value for i, value in enumerate(x)} for x in product(*(np.unique(arrays[k]) for k in legend_keys))]):
+
+            points_to_plot = np.all([arrays[k] == v for k, v in dict_values_legend.items()], axis=0)    
+            x, y = arrays[x_key][points_to_plot], arrays[y_key][points_to_plot]
+
+            f.plot_w_poly_fit(
+                x, y, degree=fit_degree, 
+                options_data={
+                    'marker': 'x', 
+                    'linestyle': '', 
+                    'color': color, 
+                    'label': f.replace_string(str(dict_values_legend), replace + [('\'', ''), ('{', ''), ('}', '')]),
+                },
+                options_fit={
+                    'linestyle': '--', 
+                    'color': color, 
+                    'alpha': 0.5
+                }
+            )
+
+        plt.legend()
+        x, y = f.replace_string(x_key, replace), f.replace_string(y_key, replace)
+        plt.xlabel(x)
+        plt.ylabel(y)
+        plt.title(f"'{y}' vs '{x}'")
+        plt.show()
