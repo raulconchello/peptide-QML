@@ -263,10 +263,11 @@ COLORS = [
 
 def plot_w_poly_fit(x, y, degree=2, options_data={}, options_fit={}):
     plt.plot(x, y, **options_data)
-    z = np.polyfit(x, y, degree)
-    p = np.poly1d(z)
-    x_pred = np.linspace(min(x), max(x), 100)
-    plt.plot(x_pred, p(x_pred), **options_fit)
+    if not degree is None:
+        z = np.polyfit(x, y, degree)
+        p = np.poly1d(z)
+        x_pred = np.linspace(min(x), max(x), 100)
+        plt.plot(x_pred, p(x_pred), **options_fit)
 
 ###--- STRINGS ---###
 def replace_string(string, replace):
