@@ -322,6 +322,17 @@ class Sweep:
             yield {'idx': index, **dict(zip(self.params.keys(), point)), **self.added_data[index]}
 
     @property
+    def points_only_w_data(self):
+        """
+        Returns a generator with a dict for each point that has data added. With the added data. 
+        Attributes of each dict: key_data1, key_data2, ..., key_dataN
+        Values of each dict: value_data1, value_data2, ..., value_dataN
+        """
+        for index, point in enumerate(self.list_points):
+            if self.added_data[index]:
+                yield {'idx': index, **dict(zip(self.params.keys(), point)), **self.added_data[index]}
+
+    @property
     def points_left(self):
         """
         Returns a generator with a dict for each point that has not been added data.
@@ -339,7 +350,7 @@ class Sweep:
         """
         Returns a dict with a list for each parameter.
         """
-        lists = {k: [] for k in tuple(self.points_w_data)[0].keys()}
+        lists = {k: [] for k in tuple(self.points_only_w_data)[0].keys()}
         for point in self.points_w_data:
             for key, value in point.items():
                 lists[key].append(value)
@@ -352,15 +363,6 @@ class Sweep:
         """
         return {k: np.array(v) for k, v in self.lists.items()}
     
-    @property
-    def arrays_trimmed(self):
-        """
-        Returns a dict with a array for each parameter. 
-        The arrays are trimmed to the minimum length.
-        Giving just the data that has been added.
-        """
-        return {k: v[:min([len(v) for v in self.arrays.values()])] for k, v in self.arrays.items()}
-
     @property
     def file_name(self):
         return f"{self.name_notebook}-{self.version}"
@@ -427,7 +429,7 @@ class Sweep:
 
     def plot(self, x_key, y_key, legend_keys=[], fit_degree=2, replace=[], figsize=(10,6), colors=f.COLORS):
 
-        arrays = self.arrays_trimmed
+        arrays = self.arrays
 
         plt.figure(figsize=figsize)
         
