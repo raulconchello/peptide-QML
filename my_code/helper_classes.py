@@ -429,11 +429,11 @@ class Sweep:
         arrays = self.arrays_trimmed
 
         plt.figure(figsize=figsize)
+        
+        for color, dict_values_legend in zip(colors, [{legend_keys[i]: value for i, value in enumerate(x)} for x in product(*(np.unique(arrays[k]) for k in legend_keys))]):
 
-        legend_list = [{}] if not legend_keys else \
-            [{legend_keys[i]: value for i, value in enumerate(x)} for x in product(*(np.unique(arrays[k]) for k in legend_keys))]
+            print(dict_values_legend)
 
-        for color, dict_values_legend in zip(colors, legend_list):
             points_to_plot = np.all([arrays[k] == v for k, v in dict_values_legend.items()], axis=0)    
             x, y = arrays[x_key][points_to_plot], arrays[y_key][points_to_plot]
             print(x, y)
