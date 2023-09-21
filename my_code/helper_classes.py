@@ -432,7 +432,7 @@ class Sweep:
         for color, dict_values_legend in zip(colors, [{legend_keys[i]: value for i, value in enumerate(x)} for x in product(*(np.unique(arrays[k]) for k in legend_keys))]):
 
             points_to_plot = np.all([arrays[k] == v for k, v in dict_values_legend.items()], axis=0)    
-            x, y = arrays[x_key][points_to_plot], arrays[y_key][points_to_plot]
+            x, y = arrays[x_key][points_to_plot].flatten, arrays[y_key][points_to_plot].flatten
 
             f.plot_w_poly_fit(
                 x, y, degree=fit_degree, 
@@ -450,8 +450,8 @@ class Sweep:
             )
 
         plt.legend()
-        x, y = f.replace_string(x_key, replace), f.replace_string(y_key, replace)
-        plt.xlabel(x)
-        plt.ylabel(y)
-        plt.title(f"'{y}' vs '{x}'")
+        x_label, y_label = f.replace_string(x_key, replace), f.replace_string(y_key, replace)
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
+        plt.title(f"'{y_label}' vs '{x_label}'")
         plt.show()
