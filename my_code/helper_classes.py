@@ -432,11 +432,8 @@ class Sweep:
         
         for color, dict_values_legend in zip(colors, [{legend_keys[i]: value for i, value in enumerate(x)} for x in product(*(np.unique(arrays[k]) for k in legend_keys))]):
 
-            print(dict_values_legend)
-
-            points_to_plot = np.all([arrays[k] == v for k, v in dict_values_legend.items()], axis=0)    
+            points_to_plot = np.all([arrays[k] == v for k, v in dict_values_legend.items()], axis=0) if dict_values_legend else np.ones(len(arrays[x_key]), dtype=bool)
             x, y = arrays[x_key][points_to_plot], arrays[y_key][points_to_plot]
-            print(x, y)
 
             f.plot_w_poly_fit(
                 x, y, degree=fit_degree, 
