@@ -427,7 +427,7 @@ class Sweep:
         else:
             print(' --- parameters sweeping: {} \n'.format(list(self.params.keys())))
 
-    def plot(self, x_key, y_key, legend_keys=[], fit_degree=2, replace=[], figsize=(10,6), colors=f.COLORS):
+    def plot(self, x_key, y_key, legend_keys=[], fit_degree=2, replace=[], fix=[], figsize=(10,6), colors=f.COLORS):
 
         arrays = self.arrays
 
@@ -436,6 +436,7 @@ class Sweep:
         for color, dict_values_legend in zip(colors, [{legend_keys[i]: value for i, value in enumerate(x)} for x in product(*(np.unique(arrays[k]) for k in legend_keys))]):
 
             points_to_plot = np.all([arrays[k] == v for k, v in dict_values_legend.items()], axis=0) if dict_values_legend else np.ones(len(arrays[x_key]), dtype=bool)
+            points_to_plot = np.all([points_to_plot, *[arrays[k] == v for k, v in fix]], axis=0)
             x, y = arrays[x_key][points_to_plot], arrays[y_key][points_to_plot]
 
             f.plot_w_poly_fit(
