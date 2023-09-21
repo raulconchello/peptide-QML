@@ -351,7 +351,7 @@ class Sweep:
         Returns a dict with a list for each parameter.
         """
         lists = {k: [] for k in tuple(self.points_only_w_data)[0].keys()}
-        for point in self.points_w_data:
+        for point in self.points_only_w_data:
             for key, value in point.items():
                 lists[key].append(value)
         return lists
