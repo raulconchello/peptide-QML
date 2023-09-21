@@ -469,11 +469,6 @@ class SweepUnion(Sweep):
 
     @property
     def points(self):
-        """
-        Returns a generator with a dict for each point.
-        Attributes of each dict: idx, param1, param2, ..., paramN
-        Values of each dict: index, value1, value2, ..., valueN
-        """
         for sweep in self.sweeps:
             for point in sweep.points:
                 yield {**point, 'sweep_uuid': sweep.uuid}
@@ -483,6 +478,12 @@ class SweepUnion(Sweep):
         for sweep in self.sweeps:
             for point in sweep.points_w_data:
                 yield {**point, 'sweep_uuid': sweep.uuid}     
+
+    @property
+    def points_only_w_data(self):
+        for sweep in self.sweeps:
+            for point in sweep.points_only_w_data:
+                yield {**point, 'sweep_uuid': sweep.uuid}
 
     @property
     def file_name(self):
