@@ -437,22 +437,24 @@ class Sweep:
 
             points_to_plot = np.all([arrays[k] == v for k, v in dict_values_legend.items()], axis=0) if dict_values_legend else np.ones(len(arrays[x_key]), dtype=bool)
             points_to_plot = np.all([points_to_plot, *[arrays[k] == v for k, v in fix]], axis=0)
-            x, y = arrays[x_key][points_to_plot], arrays[y_key][points_to_plot]
 
-            f.plot_w_poly_fit(
-                x, y, degree=fit_degree, 
-                options_data={
-                    'marker': 'x', 
-                    'linestyle': '', 
-                    'color': color, 
-                    'label': f.replace_string(str(dict_values_legend), replace + [('\'', ''), ('{', ''), ('}', '')]),
-                },
-                options_fit={
-                    'linestyle': '--', 
-                    'color': color, 
-                    'alpha': 0.5
-                }
-            )
+            if any(points_to_plot):                
+                x, y = arrays[x_key][points_to_plot], arrays[y_key][points_to_plot]
+                
+                f.plot_w_poly_fit(
+                    x, y, degree=fit_degree, 
+                    options_data={
+                        'marker': 'x', 
+                        'linestyle': '', 
+                        'color': color, 
+                        'label': f.replace_string(str(dict_values_legend), replace + [('\'', ''), ('{', ''), ('}', '')]),
+                    },
+                    options_fit={
+                        'linestyle': '--', 
+                        'color': color, 
+                        'alpha': 0.5
+                    }
+                )
 
         plt.legend()
         x_label, y_label = f.replace_string(x_key, replace), f.replace_string(y_key, replace)
