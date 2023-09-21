@@ -278,6 +278,7 @@ class Data:
         )
     
 ## SWEEP CLASSES ##
+
 class Sweep:
     def __init__(self, name_notebook, initial_path, description=None, **params):
 
@@ -456,3 +457,50 @@ class Sweep:
         plt.ylabel(y_label)
         plt.title(f"'{y_label}' vs '{x_label}'")
         plt.show()
+
+
+class SweepUnion(Sweep):
+    def __init__(self, sweeps):
+        self.sweeps = sweeps
+        self.n_sweeps = len(sweeps)
+        self.n_points = sum([sweep.n_points for sweep in sweeps])
+
+    @property
+    def points(self):
+        """
+        Returns a generator with a dict for each point.
+        Attributes of each dict: idx, param1, param2, ..., paramN
+        Values of each dict: index, value1, value2, ..., valueN
+        """
+        for sweep in self.sweeps:
+            for point in sweep.points:
+                yield {**point, 'sweep_uuid': sweep.uuid}
+
+    @property
+    def points_w_data(self):
+        for sweep in self.sweeps:
+            for point in sweep.points_w_data:
+                yield {**point, 'sweep_uuid': sweep.uuid}     
+
+    @property
+    def file_name(self):
+        raise NotImplementedError
+
+    def __iter__(self):
+        return iter(self.points)
+
+    def add_data(self, idx, **info):
+        raise NotImplementedError
+
+    def get_data(self, idx):
+        raise NotImplementedError
+    
+    def save(self, csv=True, pickle=True):
+        raise NotImplementedError
+
+    @classmethod
+    def load(cls, initial_path, day, file_name):
+        raise NotImplementedError
+    
+    def print_sweep_status(self, idx):
+        raise NotImplementedError
