@@ -457,9 +457,10 @@ class Sweep:
                 )
 
         plt.legend()
-        plt.xlabel(f.replace_string(x_key, replace))
-        plt.ylabel(f.replace_string(y_key, replace))
-        plt.title(f.replace_string(f"'{y_key}' vs '{x_key}'(" + ', '.join(f'{k}={v}' for k, v in fix) + ')', replace))
+        x_label, y_label, fix_title = f.replace_string(x_key, replace), f.replace_string(y_key, replace), f.replace_string(' (' + ', '.join(f'{k}={v}' for k, v in fix) + ')', replace)
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
+        plt.title(f"'{y_label}' vs '{x_label}'" + fix_title)
         plt.show()
 
 
