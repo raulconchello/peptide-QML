@@ -80,7 +80,7 @@ class results_item():
     def __getitem__(self, key):
         return getattr(self, key)
 
-class Results():
+class Results:
     def __init__(
         self, 
         model_uuid,
@@ -119,8 +119,6 @@ class Results():
             'items': list(attributes.keys()),
             'plain': [],
         }
-
-        self.models_id = []
 
     def __call__(self):
         return self.__dict__
@@ -375,6 +373,17 @@ class Sweep:
 
     def get_data(self, idx):
         return self.added_data[idx]
+    
+    def get_point(self, idx):
+        return {**list(self.points)[idx], **self.added_data[idx]}
+    
+    def get_point_min(self, key, fix=[]):
+        if fix:
+            idx = self.arrays['idx'][np.all([self.arrays[k] == v for k, v in fix], axis=0)][self.arrays[key][np.all([self.arrays[k] == v for k, v in fix], axis=0)].argmin()]
+            return self.get_point(idx)
+        else:
+            idx = self.arrays['idx'][self.arrays[key].argmin()]
+            return self.get_point(idx)
     
     def save(self, csv=True, pickle=True):
         dict_to_save_csv = {
