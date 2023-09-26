@@ -83,7 +83,7 @@ class parts:
         def __init__(self, n_qubits):
             super().__init__(n_qubits)
             self.weights_shapes = [(n_qubits, 2), (n_qubits-2, 2)]
-            self.weights_sizes = [np.product(shape) for shape in self.weights_shapes]
+            self.weights_sizes = [np.prod(shape) for shape in self.weights_shapes]
             self.weights_size = np.sum(self.weights_sizes)
     
         def __call__(self, weights):
@@ -135,13 +135,35 @@ class parts:
                         qml.adjoint(qml.RZ(w[i][k-i,1], wires=k))
                         qml.adjoint(qml.RY(w[i][k-i,0], wires=k))
 
+    class Ansatz_full_conn(Ansatz):
 
+        def __init__(self, n_qubits):
+            super().__init__(n_qubits)
+            self.weights_shapes = [(n_qubits, 2)]
+            self.weights_sizes = [np.prod(shape) for shape in self.weights_shapes]
+            self.weights_size = np.sum(self.weights_sizes)
+
+        def __call__(self, weights):
+
+            # split weights
+            w = self._split_weights(weights)
+
+            # apply rotations to each qubit
+            for i in range(self.n_qubits):
+                qml.RY(w[0][i,0], wires=i)
+                qml.RZ(w[0][i,1], wires=i)
+
+            # apply CNOTs to each pair of qubits
+            for i in range(self.n_qubits):
+                for j in range(i+1, self.n_qubits):
+                    qml.CNOT(wires=[i,j])
+                    
     class Ansatz_X(Ansatz):
 
         def __init__(self, n_qubits):
             super().__init__(n_qubits)
             self.weights_shapes = [(n_qubits, 2), (n_qubits-2, 2), (2, 2)]
-            self.weights_sizes = [np.product(shape) for shape in self.weights_shapes]
+            self.weights_sizes = [np.prod(shape) for shape in self.weights_shapes]
             self.weights_size = np.sum(self.weights_sizes)
     
         def __call__(self, weights):
@@ -185,7 +207,7 @@ class parts:
         def __init__(self, n_qubits):
             super().__init__(n_qubits)
             self.weights_shapes = [(n_qubits-x, 2) for x in range(0, n_qubits, 2)]
-            self.weights_sizes = [np.product(shape) for shape in self.weights_shapes]
+            self.weights_sizes = [np.prod(shape) for shape in self.weights_shapes]
             self.weights_size = np.sum(self.weights_sizes)
     
         def __call__(self, weights):
