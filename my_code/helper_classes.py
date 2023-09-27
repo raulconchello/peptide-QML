@@ -374,6 +374,9 @@ class Sweep:
     def get_data(self, idx):
         return self.added_data[idx]
     
+    def reset(self):
+        self.added_data = {k: {} for k in range(0, self.n_points)}
+    
     def get_point(self, idx):
         return {**list(self.points)[idx], **self.added_data[idx]}
     
