@@ -439,9 +439,11 @@ class Sweep:
         else:
             print(' --- parameters sweeping: {} \n'.format(list(self.params.keys())))
 
-    def plot(self, x_key, y_key, legend_keys=[], fit_degree=2, replace=[], fix=[], figsize=(10,6), colors=f.COLORS):
+    def plot(self, x_key, y_key, legend_keys=[], fit_degree=2, replace=[], fix=[], to_string=[], figsize=(10,6), colors=f.COLORS):
 
         arrays = self.arrays
+        for k in to_string:
+            arrays[k] = np.array([str(i) for i in arrays[k]])
 
         plt.figure(figsize=figsize)
         
