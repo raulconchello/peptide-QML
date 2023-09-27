@@ -366,7 +366,7 @@ class Sweep:
         return f"{self.name_notebook}-{self.version}"
 
     def __iter__(self):
-        return iter(self.points)
+        return iter(self.points_left)
 
     def add_data(self, idx, **info):
         self.added_data[idx].update(info)
