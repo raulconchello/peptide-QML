@@ -380,12 +380,16 @@ class Sweep:
     def get_point(self, idx):
         return {**list(self.points)[idx], **self.added_data[idx]}
     
-    def get_point_min(self, key, fix=[]):
+    def get_point_min(self, key, fix=[], to_string=[]):
+        arrays = self.arrays
+        for k in to_string:
+            arrays[k] = np.array([str(i) for i in arrays[k]])
+            
         if fix:
-            idx = self.arrays['idx'][np.all([self.arrays[k] == v for k, v in fix], axis=0)][self.arrays[key][np.all([self.arrays[k] == v for k, v in fix], axis=0)].argmin()]
+            idx = arrays['idx'][np.all([arrays[k] == v for k, v in fix], axis=0)][arrays[key][np.all([arrays[k] == v for k, v in fix], axis=0)].argmin()]
             return self.get_point(idx)
         else:
-            idx = self.arrays['idx'][self.arrays[key].argmin()]
+            idx = arrays['idx'][arrays[key].argmin()]
             return self.get_point(idx)
     
     def save(self, csv=True, pickle=True):
