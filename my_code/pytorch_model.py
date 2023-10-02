@@ -318,6 +318,7 @@ class Model(nn.Module):
                     print("Progress: {:.2f}%. \t\t\t Ending in {:.2f} minutes".format(
                         100*(i+1)/len_data, (len_data-i+1)*(t.time()-start_time)/(i+1)/60), end="\r")
 
+        r_squared = f.r_squared(y_test.tolist(), y_prediction)
         if add_to_results:
             self.results.add_plain_attributes(
                 validation = {
@@ -325,13 +326,14 @@ class Model(nn.Module):
                     'y_test': y_test.tolist(),
                     'y_prediction': y_prediction,
                     'losses': losses,
+                    'r_squared': r_squared,
                 }
             )
             
         if plot:
             self.plot_validation()
 
-        print("Mean loss: {}, std loss: {}".format(np.mean(losses), np.std(losses)))
+        print("Mean loss: {}, std loss: {}, r^2: {}".format(np.mean(losses), np.std(losses), r_squared))
         
     @property
     def mean_loss_validation(self):

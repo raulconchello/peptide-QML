@@ -208,14 +208,14 @@ def plot_validation(results, fig_size=(6,6)):
     y_test = results.validation['y_test']
     y_pred = results.validation['y_prediction']
     mean = np.mean(results.validation['losses'])
-    std = np.std(results.validation['losses'])
+    r_sq = results.validation['r_squared']
 
     plt.figure(figsize=fig_size)
     plt.scatter(y_test, y_pred, color='r', label='Actual vs. Predicted', alpha=0.1)
     plt.plot([np.min(y_test), np.max(y_test)], [np.min(y_test), np.max(y_test)], 'k--', lw=2, label='1:1 Line')
     plt.xlabel('True Values')
     plt.ylabel('Predictions')
-    plt.title('Predictions vs. True Values (avg: {:.4f}, std: {:.4f})'.format(mean, std))
+    plt.title('Predictions vs. True Values (avg: {:.4f}, r^2: {:.4f})'.format(mean, r_sq))
     plt.legend()
     plt.show()
 
@@ -416,4 +416,13 @@ def find_intervals(intervals_list, values_list):
             # If no interval is found, add the first and last values of the first list.
             results.append((intervals_list[0], intervals_list[-1]))
     return results
+
+def r_squared(x, y):
+    """
+    Calculates the R^2 value of the linear regression of y with respect to x.
+    """
+    x, y = np.array(x), np.array(y)
+    slope, intercept = np.polyfit(x, y, 1)
+    y_pred = slope * x + intercept
+    return 1 - np.sum((y - y_pred) ** 2) / np.sum((y - np.mean(y)) ** 2)
 
