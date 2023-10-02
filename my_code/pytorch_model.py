@@ -349,6 +349,33 @@ class Model(nn.Module):
     def plot_losses(self, fig_size=(6,6)):
         f.plot_losses_training(results=self.results, fig_size=fig_size)
 
+    def load_results(self, uuid):
+
+        if not isinstance(uuid, str):
+            uuid = str(uuid)
+
+        file_path = self.initial_path + '/saved/results.csv'
+        day, file_name = f.get_from_csv(file_path, to_search={'model_uuid': uuid}, to_return=['day', 'file_name'])
+
+        if day is None:
+            raise ValueError("Returned None for day.")
+        if file_name is None:
+            raise ValueError("Returned None for file_name.")
+        
+        self.results = c.Results.load(
+            initial_path=self.initial_path,
+            day=day,
+            file_name=file_name,
+        )
+        print("Loaded results with uuid {}.".format(uuid))
+
+    def load_state_dict_from_results(self, state_dict_name, rule):
+        self.load_state_dict(getattr(getattr(self.results, state_dict_name), rule))
+        
+
+
+
+
 
 
     # def plot_parameter(self, layer, index=None, save=False):

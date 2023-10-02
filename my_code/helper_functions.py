@@ -327,6 +327,19 @@ def load_pickle(file_name, folder, initial_path, day=None):
     #load
     with open(file_name, 'rb') as f:
         return pickle.load(f)
+    
+
+###--- LOAD DATA ---###
+def get_from_csv(file_path, to_search, to_return):
+
+    with open(file_path, mode='r') as csv_file:
+        reader = csv.DictReader(csv_file)
+        for row in reader:
+            if np.all([row[k] == v for k,v in to_search.items()]):
+                return [row[k] for k in to_return]
+            
+    return [None for _ in to_return]
+
 
 
 
@@ -387,3 +400,4 @@ def should_stop_training(losses, lookback_epochs=5, threshold_slope=0.001, thres
 
     # Otherwise, stop training
     return True
+
