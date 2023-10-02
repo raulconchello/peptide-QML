@@ -401,3 +401,19 @@ def should_stop_training(losses, lookback_epochs=5, threshold_slope=0.001, thres
     # Otherwise, stop training
     return True
 
+def find_intervals(intervals_list, values_list):
+    """
+    Finds the intervals in which the values of the 'values_list' are contained in the 'intervals_list'.
+    Returns a list of tuples (interval_start, interval_end). One tuple for each value in the 'values_list'.    
+    """
+    results = []
+    for num in values_list:
+        for i in range(len(intervals_list) - 1):
+            if intervals_list[i] <= num <= intervals_list[i + 1]:
+                results.append((intervals_list[i], intervals_list[i + 1]))
+                break
+        else:
+            # If no interval is found, add the first and last values of the first list.
+            results.append((intervals_list[0], intervals_list[-1]))
+    return results
+
