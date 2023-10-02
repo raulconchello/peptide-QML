@@ -511,6 +511,123 @@ class Model(nn.Module):
             }
         )
 
+    def get_input_with_low_score_2(
+        self,
+        layers_to_use:list,
+        n_iter = 1000,
+        optimizer = torch.optim.Adam,
+        optimizer_options = {'lr': 0.1},
+        stop_criterion = 1e-4,
+        initialization_seed = 42,
+        metadata = {},
+        embedding_dim = 2,
+    ):  
+        
+        self.input_optimization_uuid = uuid.uuid4()
+        if not hasattr(self, 'optimized_inputs'): self.load_optimized_inputs()        
+        
+        optimization_inputs = {
+            'layers_to_use': layers_to_use,
+            'n_iter': n_iter,
+            'optimizer': optimizer,
+            'optimizer_options': optimizer_options,
+            'stop_criterion': stop_criterion,
+            'initialization_seed': initialization_seed,
+            'metadata': metadata,
+        }
+        
+        # OPTIMIZE THE QUANTUM INPUT
+        self.input_optimization_results = c.Results(
+            model_uuid = self.uuid,
+            file_name = self.file_name,
+            day = self.day,
+            initial_path = self.initial_path,
+            metadata = {
+                'input_optimization_uuid': self.input_optimization_uuid,
+                'optimization_inputs': optimization_inputs,
+            },
+            score  = c.keep(last=True, best=True, history=True),
+            optimized_input = c.keep(last=True, best=True, history=False),
+            n_iter = c.keep(last=True, best=True, history=True),
+            time   = c.keep(last=True, best=True, history=True),
+        )
+
+        torch.manual_seed(initialization_seed)
+        input_to_optimize = nn.Parameter(torch.randint(0, 18, self.quantum_layer.input_shape, dtype=torch.float64) / 18 * 2 * np.pi)
+        optimizer = optimizer([input_to_optimize], **optimizer_options)
+
+        def model_without_embedding(x):
+            for layer in layers_to_use:
+                x = getattr(self, layer)(x)
+            return x
+
+        self.eval()
+        last_score = model_without_embedding(input_to_optimize).item()        
+        self.input_optimization_results.update(
+            update_leader = 'score',
+            optimized_input = input_to_optimize.detach().numpy().tolist(),
+            n_iter = 0,
+            score = last_score,
+            time = 0,
+        )
+        start_time = t.time()
+
+        for i in range(n_iter):
+
+            # optimize
+            optimizer.zero_grad()
+            score = model_without_embedding(input_to_optimize)
+            score.backward()
+            optimizer.step()
+
+            # update results
+            self.input_optimization_results.update(
+                update_leader = 'score',
+                optimized_input = input_to_optimize.detach().numpy().tolist(),
+                n_iter = i+1,
+                score = score.item(),
+                time = t.time() - start_time,
+            )
+
+            # print the score and stop if the score is not changing anymore
+            print(i, score.item(), end='\r')
+            if abs(last_score - score.item()) < stop_criterion and i > 10:
+                break
+
+            # update last_score
+            last_score = score.item()
+
+
+        # FROM OPTIMIZED QUANTUM INPUT TO AMINOACID SEQUENCE
+        def to_unique_angles(x):
+            return x % (2 * np.pi)
+        
+        # get the optimized input between 0 and 2pi
+        optimized_x = to_unique_angles(np.array(self.input_optimization_results.optimized_input.best))
+        embedding_dim = self.fc1.embedding_dim
+        optimized_x = torch.tensor(optimized_x.reshape(embedding_dim, self.quantum_layer.input_shape[0]//embedding_dim))
+
+        # get the embedding values between 0 and 2pi
+        values_embedding = to_unique_angles(self.fc1.weight.data)
+
+        seq = []
+        for i in optimized_x:
+            distance = torch.norm(values_embedding - i, dim=1)
+            nearest = torch.argmin(distance)
+            seq.append(nearest.item())
+        score = self(torch.tensor(seq, dtype=torch.int)).item()
+
+        print('Score: {:.4f}, sequence: {}'.format(score, seq), end='                    ')
+
+
+        self.optimized_inputs.append((seq, score))
+        self.input_optimization_results.add_plain_attributes(
+            optimized_input = {
+                'sequence': seq,
+                'score': score,
+            }
+        )
+
     def save_input_optimization_results(self):
         self.input_optimization_results.save(
             csv_file='input_optimization',
