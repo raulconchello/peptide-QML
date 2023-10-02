@@ -355,23 +355,93 @@ class Model(nn.Module):
             uuid = str(uuid)
 
         file_path = self.initial_path + '/saved/results.csv'
-        day, file_name = f.get_from_csv(file_path, to_search={'model_uuid': uuid}, to_return=['day', 'file_name'])
+        self.day, self.file_name = f.get_from_csv(file_path, to_search={'model_uuid': uuid}, to_return=['day', 'file_name'])
 
-        if day is None:
+        if self.day is None:
             raise ValueError("Returned None for day.")
-        if file_name is None:
+        if self.file_name is None:
             raise ValueError("Returned None for file_name.")
         
         self.results = c.Results.load(
             initial_path=self.initial_path,
-            day=day,
-            file_name=file_name,
+            day=self.day,
+            file_name=self.file_name,
         )
         print("Loaded results with uuid {}.".format(uuid))
 
     def load_state_dict_from_results(self, state_dict_name, rule):
         self.load_state_dict(getattr(getattr(self.results, state_dict_name), rule))
         print("Loaded {} state_dict from results.".format(rule)) 
+        
+
+    def get_input_with_low_score(
+        self,
+        layers_to_use:list[str],
+        n_iter = 1000,
+        optimizer = torch.optim.Adam,
+        optimizer_options = {'lr': 0.1},
+        stop_criterion = 1e-4,
+        initialization_seed = 42,
+        metadata = {},
+    ):  
+        
+        # OPTIMIZE THE QUANTUM INPUT
+        self.input_optimization_results = c.Results(
+            model_uuid = self.uuid,
+            file_name = self.file_name,
+            day = self.day,
+            initial_path = self.initial_path,
+            metadata = metadata,
+            score  = c.keep(last=True, best=True, history=True),
+            optimized_input = c.keep(last=True, best=True, history=False),
+            n_iter = c.keep(last=True, best=True, history=True),
+            time   = c.keep(last=True, best=True, history=True),
+        )
+
+        torch.manual_seed(initialization_seed)
+        input_to_optimize = nn.Parameter(torch.randint(0, 18, self.quantum_layer.input_shape, dtype=torch.float64) / 18 * 2 * np.pi)
+        optimizer = optimizer([input_to_optimize], **optimizer_options)
+
+        def model_without_embedding(x):
+            for layer in layers_to_use:
+                x = getattr(self, layer)(x)
+
+        self.eval()
+        last_score = model_without_embedding(input_to_optimize).item()        
+        self.input_optimization_results.update(
+            update_leader = 'score',
+            optimized_input = input_to_optimize.detach().numpy().tolist(),
+            n_iter = 0,
+            score = last_score,
+            time = 0,
+        )
+        start_time = t.time()
+
+        for i in range(n_iter):
+
+            # optimize
+            optimizer.zero_grad()
+            score = model_without_embedding(input_to_optimize)
+            score.backward()
+            optimizer.step()
+
+            # update results
+            self.input_optimization_results.update(
+                update_leader = 'score',
+                optimized_input = input_to_optimize.detach().numpy().tolist(),
+                n_iter = i+1,
+                score = score.item(),
+                time = t.time() - start_time,
+            )
+
+            # print the score and stop if the score is not changing anymore
+            print(i, score.item(), end='\r')
+            if abs(last_score - score.item()) < stop_criterion and i > 10:
+                break
+
+            # update last_score
+            last_score = score.item()
+
         
 
 
