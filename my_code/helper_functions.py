@@ -422,6 +422,7 @@ def r_squared(x, y):
     Calculates the R^2 value of the linear regression of y with respect to x.
     """
     x, y = np.array(x), np.array(y)
+    print(x.shape, y.shape)
     slope, intercept = np.polyfit(x, y, 1)
     y_pred = slope * x + intercept
     return 1 - np.sum((y - y_pred) ** 2) / np.sum((y - np.mean(y)) ** 2)
