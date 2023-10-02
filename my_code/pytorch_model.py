@@ -371,6 +371,7 @@ class Model(nn.Module):
 
     def load_state_dict_from_results(self, state_dict_name, rule):
         self.load_state_dict(getattr(getattr(self.results, state_dict_name), rule))
+        print("Loaded {} state_dict from results.".format(rule)) 
         
 
 
