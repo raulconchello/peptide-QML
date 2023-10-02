@@ -160,25 +160,28 @@ class Results:
         
         for k, v in attributes.items():                    
             setattr(self, k, v)
-            self.attributes['plain'].append(k)
+            if k not in self.attributes['plain']:
+                self.attributes['plain'].append(k)
 
-    def save(self):
+    def save(self, csv_file='results', folder='Results', additional_csv={}, file_name_prefix=''):
         file_name, initial_path = self.file_name, self.initial_path
+
         dict_to_save_csv = {
             "model_uuid": str(self.model_uuid),
             "day": self.day,
             "file_name": file_name, 
+            **additional_csv,
             'date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
         f.save_csv(
             dict_to_save_csv, 
-            file_name='results', 
+            file_name=csv_file, 
             initial_path=initial_path,
         )
         f.save_pickle(
             self,
-            file_name=file_name, 
-            folder='Results',
+            file_name=file_name + file_name_prefix, 
+            folder=folder,
             initial_path=initial_path,
             day=self.day,
         )
