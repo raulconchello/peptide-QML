@@ -351,11 +351,8 @@ class Model(nn.Module):
 
     def load_results(self, uuid):
 
-        if not isinstance(uuid, str):
-            uuid = str(uuid)
-
         file_path = self.initial_path + '/saved/results.csv'
-        self.day, self.file_name = f.get_from_csv(file_path, to_search={'model_uuid': uuid}, to_return=['day', 'file_name'])
+        self.day, self.file_name = f.get_from_csv(file_path, to_search={'model_uuid': str(uuid)}, to_return=['day', 'file_name'])
 
         if self.day is None:
             raise ValueError("Returned None for day.")
