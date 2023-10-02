@@ -111,6 +111,32 @@ class parts:
         def inv(self):
             return parts.Ansatz_11_inv(self.n_qubits)
         
+    class Ansatz_11_2(Ansatz):
+
+        def __init__(self, n_qubits):
+            super().__init__(n_qubits)
+            self.weights_shapes = [(n_qubits, 4)]
+            self.weights_sizes = [np.prod(shape) for shape in self.weights_shapes]
+            self.weights_size = np.sum(self.weights_sizes)
+
+        def __call__(self, weights):
+
+            # split weights
+            w = self._split_weights(weights)
+
+            # number of qubits
+            n_qubits = self.n_qubits
+            
+            # apply roations and CNOT to each pair of qubits
+            for i in [0,1]:
+
+                for j in range(n_qubits):
+                    qml.RY(w[0][j,0+i*2], wires=j)
+                    qml.RZ(w[0][j,1+i*2], wires=j)
+
+                for j, q in enumerate(range(i, n_qubits, 2)):                          
+                    qml.CNOT(wires=[q, (q+1)%n_qubits])
+        
     class Ansatz_2(Ansatz):
 
         def __init__(self, n_qubits):
