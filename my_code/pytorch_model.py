@@ -605,7 +605,7 @@ class Model(nn.Module):
         # get the optimized input between 0 and 2pi
         optimized_x = to_unique_angles(np.array(self.input_optimization_results.optimized_input.best))
         embedding_dim = self.fc1.embedding_dim
-        optimized_x = torch.tensor(optimized_x.reshape(embedding_dim, self.quantum_layer.input_shape[0]//embedding_dim))
+        optimized_x = torch.tensor(optimized_x).reshape(embedding_dim, self.quantum_layer.input_shape[0]//embedding_dim).T
 
         # get the embedding values between 0 and 2pi
         values_embedding = to_unique_angles(self.fc1.weight.data)
