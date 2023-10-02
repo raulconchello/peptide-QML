@@ -616,6 +616,7 @@ class Model(nn.Module):
             nearest = torch.argmin(distance)
             seq.append(nearest.item())
         score = self(torch.tensor(seq, dtype=torch.int)).item()
+        seq = tuple(seq)
 
         print('Score: {:.4f}, sequence: {}'.format(score, seq), end='                    ')
 
