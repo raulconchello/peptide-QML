@@ -612,9 +612,14 @@ class Model(nn.Module):
 
         seq = []
         for i in optimized_x:
-            distance = torch.norm(values_embedding - i, dim=1)
+            diff = values_embedding - i
+            while torch.any(diff>np.pi): # if the difference is bigger than pi, we need to change it to the other side
+                diff = torch.abs(2*np.pi*(diff>np.pi)-diff)
+
+            distance = torch.norm(diff, dim=1)
             nearest = torch.argmin(distance)
             seq.append(nearest.item())
+            
         score = self(torch.tensor(seq, dtype=torch.int)).item()
         seq = tuple(seq)
 
