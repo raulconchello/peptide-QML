@@ -318,7 +318,7 @@ class Model(nn.Module):
                     print("Progress: {:.2f}%. \t\t\t Ending in {:.2f} minutes".format(
                         100*(i+1)/len_data, (len_data-i+1)*(t.time()-start_time)/(i+1)/60), end="\r")
 
-        r_squared = f.r_squared(y_test.tolist(), y_prediction)
+        r_squared = f.r_squared(y_test.flatten().tolist(), y_prediction)
         if add_to_results:
             self.results.add_plain_attributes(
                 validation = {
