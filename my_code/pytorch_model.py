@@ -5,6 +5,7 @@ import datetime
 import time as t
 import numpy as np
 from copy import deepcopy
+from itertools import product
 
 # torch imports
 import torch
@@ -352,7 +353,11 @@ class Model(nn.Module):
     def load_results(self, uuid):
 
         file_path = self.initial_path + '/saved/results.csv'
-        self.day, self.file_name = f.get_from_csv(file_path, to_search={'model_uuid': str(uuid)}, to_return=['day', 'file_name'])
+        returned_list = f.get_from_csv(file_path, to_search={'model_uuid': str(uuid)}, to_return=['day', 'file_name'])
+        self.day = returned_list[0]
+        self.name_notebook, self.version = returned_list[1].split('-')
+        self.version = int(self.version)
+        self.uuid = uuid
 
         if self.day is None:
             raise ValueError("Returned None for day.")
@@ -369,7 +374,13 @@ class Model(nn.Module):
     def load_state_dict_from_results(self, state_dict_name, rule):
         self.load_state_dict(getattr(getattr(self.results, state_dict_name), rule))
         print("Loaded {} state_dict from results.".format(rule)) 
-        
+
+    
+    def load_optimized_inputs(self):        
+        try:
+            self.optimized_inputs = f.load_pickle(self.file_name+"-optimized_inputs_list", 'Input_optimization', self.initial_path, self.day)
+        except:
+            self.optimized_inputs = []
 
     def get_input_with_low_score(
         self,
@@ -382,13 +393,29 @@ class Model(nn.Module):
         metadata = {},
     ):  
         
+        self.input_optimization_uuid = uuid.uuid4()
+        if not hasattr(self, 'optimized_inputs'): self.load_optimized_inputs()        
+        
+        optimization_inputs = {
+            'layers_to_use': layers_to_use,
+            'n_iter': n_iter,
+            'optimizer': optimizer,
+            'optimizer_options': optimizer_options,
+            'stop_criterion': stop_criterion,
+            'initialization_seed': initialization_seed,
+            'metadata': metadata,
+        }
+        
         # OPTIMIZE THE QUANTUM INPUT
         self.input_optimization_results = c.Results(
             model_uuid = self.uuid,
             file_name = self.file_name,
             day = self.day,
             initial_path = self.initial_path,
-            metadata = metadata,
+            metadata = {
+                'input_optimization_uuid': self.input_optimization_uuid,
+                'optimization_inputs': optimization_inputs,
+            },
             score  = c.keep(last=True, best=True, history=True),
             optimized_input = c.keep(last=True, best=True, history=False),
             n_iter = c.keep(last=True, best=True, history=True),
@@ -402,6 +429,7 @@ class Model(nn.Module):
         def model_without_embedding(x):
             for layer in layers_to_use:
                 x = getattr(self, layer)(x)
+            return x
 
         self.eval()
         last_score = model_without_embedding(input_to_optimize).item()        
@@ -439,8 +467,75 @@ class Model(nn.Module):
             # update last_score
             last_score = score.item()
 
+
+        # FROM OPTIMIZED QUANTUM INPUT TO AMINOACID SEQUENCE
+        def to_unique_angles(x):
+            return x % (2 * np.pi)
+        
+        # get the optimized input between 0 and 2pi
+        optimized_x = to_unique_angles(np.array(self.input_optimization_results.optimized_input.best))
+
+        # get the embedding values between 0 and 2pi
+        values_embedding = to_unique_angles(self.state_dict()['fc1.weight'].flatten().detach().numpy())
+        dict_values = dict(zip(values_embedding, list(range(19))))
+        values_embedding = sorted(values_embedding)
+
+        # get between which embedding values the optimized input values are
+        intervals = f.find_intervals(values_embedding, optimized_x) 
+        # for each position we have two possible aminoacids
+        possible_inputs = [(dict_values[i],dict_values[j]) for i,j in intervals] 
+        # get all possible combinations
+        combinations = list(product(*possible_inputs))
         
 
+        best_combination_i = 0
+        scores = []
+        for i, comb in enumerate(combinations):
+            score = self(torch.tensor(comb, dtype=torch.int)).item()
+            scores.append(score)
+            if score < scores[best_combination_i]:
+                best_combination_i = i
+
+            print('{}/{} combination, score: {:.4f}, best score: {:.4f}'.format(i+1, len(combinations), score, scores[best_combination_i]), end='\r')
+        print('{}, score: {:.4f}'.format(combinations[best_combination_i], scores[best_combination_i]), end='                    ')
+
+
+        self.optimized_inputs.append((combinations[best_combination_i], scores[best_combination_i]))
+        self.input_optimization_results.add_plain_attributes(
+            optimized_combinations = {
+                'combinations': combinations,
+                'scores': scores,
+                'best_combination_i': best_combination_i,
+            }
+        )
+
+    def save_input_optimization_results(self):
+        self.input_optimization_results.save(
+            csv_file='input_optimization',
+            folder='Input_optimization',
+            additional_csv={
+                'optimization_uuid': self.input_optimization_uuid,
+                'optimization_version': len(self.optimized_inputs)-1,
+            },
+            file_name_prefix='-'+str(len(self.optimized_inputs)-1),
+        )
+        f.save_pickle(self.optimized_inputs, self.file_name+"-optimized_inputs_list", 'Input_optimization', self.initial_path, self.day)
+
+    def load_input_optimization_results(self, i=None):
+        self.load_optimized_inputs()
+        file_name = self.file_name+'-'+str(len(self.optimized_inputs)-1) if i is None else self.file_name+'-'+str(i)
+        self.input_optimization_results = f.load_pickle(file_name, 'Input_optimization', self.initial_path, day=self.day)
+        self.input_optimization_uuid = self.input_optimization_results.metadata['input_optimization_uuid']
+        print("Loaded input optimization results with uuid {}.".format(self.input_optimization_uuid))
+
+    @property
+    def optimized_inputs_unique(self):
+        return list(set(self.optimized_inputs))
+    
+    @property
+    def best_optimized_input(self):
+        return min(self.optimized_inputs_unique, key=lambda x: x[1])
+        
 
 
 
