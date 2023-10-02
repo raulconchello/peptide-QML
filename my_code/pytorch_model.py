@@ -376,7 +376,7 @@ class Model(nn.Module):
 
     def get_input_with_low_score(
         self,
-        layers_to_use:list[str],
+        layers_to_use:list,
         n_iter = 1000,
         optimizer = torch.optim.Adam,
         optimizer_options = {'lr': 0.1},
