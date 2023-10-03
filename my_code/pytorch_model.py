@@ -615,7 +615,6 @@ class Model(nn.Module):
             diff = values_embedding - i
             while torch.any(diff>np.pi): # if the difference is bigger than pi, we need to change it to the other side
                 diff = torch.abs(2*np.pi*(diff>np.pi)-diff)
-                print('h')
 
             distance = torch.norm(diff, dim=1)
             nearest = torch.argmin(distance)
