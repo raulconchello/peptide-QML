@@ -41,6 +41,7 @@ POSSIBLE_ANGLES = np.linspace(0, 2*np.pi, len(type_map)).tolist()
 POSSIBLE_AMINOACIDS_LETTER = [v[0] for v in type_map.values()]
 code_to_number = {k: v[1] for k, v in type_map.items()}
 letter_to_number = {v[0]: v[1] for v in type_map.values()}
+number_to_letter = {v:k for k,v in letter_to_number.items()}
 letter_to_angle = {letter: angle for angle, letter in zip(POSSIBLE_ANGLES, POSSIBLE_AMINOACIDS_LETTER)}
 letter_to_vector = {v[0]: np.eye(n_aminoacids)[v[1]] for v in type_map.values()}
 
@@ -137,6 +138,9 @@ def string_to_angles(string):
 
 def string_to_numbers(string):
     return [letter_to_number[letter] for letter in string]
+
+def numbers_to_string(numbers):
+    return ''.join([number_to_letter[number] for number in numbers])
 
 def string_to_vector(string):
     return np.array([letter_to_vector[letter] for letter in string]).flatten()
