@@ -392,135 +392,8 @@ class Model(nn.Module):
         optimizer_options = {'lr': 0.1},
         stop_criterion = 1e-4,
         initialization_seed = 42,
+        k_closest = 2,
         metadata = {},
-    ):  
-        
-        self.input_optimization_uuid = uuid.uuid4()
-        if not hasattr(self, 'optimized_inputs'): self.load_optimized_inputs()        
-        
-        optimization_inputs = {
-            'layers_to_use': layers_to_use,
-            'n_iter': n_iter,
-            'optimizer': optimizer,
-            'optimizer_options': optimizer_options,
-            'stop_criterion': stop_criterion,
-            'initialization_seed': initialization_seed,
-            'metadata': metadata,
-        }
-        
-        # OPTIMIZE THE QUANTUM INPUT
-        self.input_optimization_results = c.Results(
-            model_uuid = self.uuid,
-            file_name = self.file_name,
-            day = self.day,
-            initial_path = self.initial_path,
-            metadata = {
-                'input_optimization_uuid': self.input_optimization_uuid,
-                'optimization_inputs': optimization_inputs,
-            },
-            score  = c.keep(last=True, best=True, history=True),
-            optimized_input = c.keep(last=True, best=True, history=False),
-            n_iter = c.keep(last=True, best=True, history=True),
-            time   = c.keep(last=True, best=True, history=True),
-        )
-
-        torch.manual_seed(initialization_seed)
-        input_to_optimize = nn.Parameter(torch.randint(0, 18, self.quantum_layer.input_shape, dtype=torch.float64) / 18 * 2 * np.pi)
-        optimizer = optimizer([input_to_optimize], **optimizer_options)
-
-        def model_without_embedding(x):
-            for layer in layers_to_use:
-                x = getattr(self, layer)(x)
-            return x
-
-        self.eval()
-        last_score = model_without_embedding(input_to_optimize).item()        
-        self.input_optimization_results.update(
-            update_leader = 'score',
-            optimized_input = input_to_optimize.detach().numpy().tolist(),
-            n_iter = 0,
-            score = last_score,
-            time = 0,
-        )
-        start_time = t.time()
-
-        for i in range(n_iter):
-
-            # optimize
-            optimizer.zero_grad()
-            score = model_without_embedding(input_to_optimize)
-            score.backward()
-            optimizer.step()
-
-            # update results
-            self.input_optimization_results.update(
-                update_leader = 'score',
-                optimized_input = input_to_optimize.detach().numpy().tolist(),
-                n_iter = i+1,
-                score = score.item(),
-                time = t.time() - start_time,
-            )
-
-            # print the score and stop if the score is not changing anymore
-            print(i, score.item(), end='\r')
-            if abs(last_score - score.item()) < stop_criterion and i > 10:
-                break
-
-            # update last_score
-            last_score = score.item()
-
-
-        # FROM OPTIMIZED QUANTUM INPUT TO AMINOACID SEQUENCE
-        def to_unique_angles(x):
-            return x % (2 * np.pi)
-        
-        # get the optimized input between 0 and 2pi
-        optimized_x = to_unique_angles(np.array(self.input_optimization_results.optimized_input.best))
-
-        # get the embedding values between 0 and 2pi
-        values_embedding = to_unique_angles(self.state_dict()['fc1.weight'].flatten().detach().numpy())
-        dict_values = dict(zip(values_embedding, list(range(19))))
-        values_embedding = sorted(values_embedding)
-
-        # get between which embedding values the optimized input values are
-        intervals = f.find_intervals(values_embedding, optimized_x) 
-        # for each position we have two possible aminoacids
-        possible_inputs = [(dict_values[i],dict_values[j]) for i,j in intervals] 
-        # get all possible combinations
-        combinations = list(product(*possible_inputs))
-        
-
-        best_combination_i = 0
-        scores = []
-        for i, comb in enumerate(combinations):
-            score = self(torch.tensor(comb, dtype=torch.int)).item()
-            scores.append(score)
-            if score < scores[best_combination_i]:
-                best_combination_i = i
-
-            print('{}/{} combination, score: {:.4f}, best score: {:.4f}'.format(i+1, len(combinations), score, scores[best_combination_i]), end='\r')
-        print('{}, score: {:.4f}'.format(combinations[best_combination_i], scores[best_combination_i]), end='                    ')
-
-
-        self.optimized_inputs.append((combinations[best_combination_i], scores[best_combination_i]))
-        self.input_optimization_results.add_plain_attributes(
-            optimized_combinations = {
-                'combinations': combinations,
-                'scores': scores,
-                'best_combination_i': best_combination_i,
-            }
-        )
-
-    def get_input_with_low_score_2(
-        self,
-        layers_to_use:list,
-        n_iter = 1000,
-        optimizer = torch.optim.Adam,
-        optimizer_options = {'lr': 0.1},
-        stop_criterion = 1e-4,
-        initialization_seed = 42,
-        metadata = {},
-        embedding_dim = 2,
     ):  
         
         self.input_optimization_uuid = uuid.uuid4()
@@ -610,25 +483,7 @@ class Model(nn.Module):
         # get the embedding values between 0 and 2pi
         values_embedding = to_unique_angles(self.fc1.weight.data)
 
-        #seq = []
-        #for i in optimized_x:
-        #    diff = values_embedding - i
-        #    while torch.any(diff>np.pi): # if the difference is bigger than pi, we need to change it to the other side
-        #        diff = torch.abs(2*np.pi*(diff>np.pi)-diff)
-
-        #    distance = torch.norm(diff, dim=1)
-        #    nearest = torch.argmin(distance) 
-        #    seq.append(nearest.item())
-
-        #score = self(torch.tensor(seq, dtype=torch.int)).item()
-        #seq = tuple(seq)
-
-        #print('Score: {:.4f}, sequence: {}'.format(score, seq), end='                    ')
-
-
-        #self.optimized_inputs.append((seq, score))
-
-
+        # get between which embedding values the optimized input values are 
         possible_inputs = []
         for i in optimized_x:
             diff = values_embedding - i
@@ -636,7 +491,7 @@ class Model(nn.Module):
                 diff = torch.abs(2*np.pi*(diff>np.pi)-diff)
 
             distance = torch.norm(diff, dim=1)
-            _, two_nearest = torch.topk(distance, k=2, largest=False)
+            _, two_nearest = torch.topk(distance, k=k_closest, largest=False)
             possible_inputs.append(two_nearest.tolist())
 
         # get all possible combinations
