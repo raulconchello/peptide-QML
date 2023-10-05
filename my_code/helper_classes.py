@@ -333,6 +333,16 @@ class Sweep:
             if self.added_data[index]:
                 yield {'idx': index, **dict(zip(self.params.keys(), point)), **self.added_data[index]}
 
+    # def points_constrained(self, constraints):  
+    #     """
+    #     Returns a generator with a dict for each point, constrained by the constraints.
+    #     Example of constraints: [('param1', 'operator1', value1), ('param2', 'operator2', value2), ...]
+    #     'operator' can be: '==', '!=', '>', '<', '>=', '<='
+    #     """
+    #     for index, point in enumerate(self.list_points):
+    #         if all([eval(f"{point[k]} {operator} {v}") for k, operator, v in constraints]):
+    #             yield {'idx': index, **dict(zip(self.params.keys(), point))}
+
     @property
     def points_left(self):
         """
@@ -363,6 +373,22 @@ class Sweep:
         Returns a dict with a array for each parameter.
         """
         return {k: np.array(v) for k, v in self.lists.items()}
+
+    def arrays_constrained(self, constraints):  
+        """
+        Returns a dict with a array for each parameter, constrained by the constraints.
+        Example of constraints: [('param1', 'operator1', value1), ('param2', 'operator2', value2), ...]
+        'operator' can be: '==', '!=', '>', '<', '>=', '<='
+        """
+        arrays = self.arrays
+        for k, operator, v in constraints:
+            if isinstance(v, str):
+                arrays[k] = np.array([str(i) for i in arrays[k]])
+                
+            constraint = eval(f"arrays[k] {operator} v")
+            for a in arrays.keys():
+                arrays[a] = arrays[a][constraint]
+        return arrays
     
     @property
     def file_name(self):
@@ -446,9 +472,9 @@ class Sweep:
         else:
             print(' --- parameters sweeping: {} \n'.format(list(self.params.keys())))
 
-    def plot(self, x_key, y_key, legend_keys=[], fit_degree=2, replace=[], fix=[], to_string=[], figsize=(10,6), colors=f.COLORS):
+    def plot(self, x_key, y_key, legend_keys=[], fit_degree=2, replace=[], constraints=[], to_string=[], figsize=(10,6), colors=f.COLORS):
 
-        arrays = self.arrays
+        arrays = self.arrays_constrained(constraints)
         for k in to_string:
             arrays[k] = np.array([str(i) for i in arrays[k]])
 
@@ -457,7 +483,6 @@ class Sweep:
         for color, dict_values_legend in zip(colors, [{legend_keys[i]: value for i, value in enumerate(x)} for x in product(*(np.unique(arrays[k]) for k in legend_keys))]):
 
             points_to_plot = np.all([arrays[k] == v for k, v in dict_values_legend.items()], axis=0) if dict_values_legend else np.ones(len(arrays[x_key]), dtype=bool)
-            points_to_plot = np.all([points_to_plot, *[arrays[k] == v for k, v in fix]], axis=0)
 
             if any(points_to_plot):                
                 x, y = arrays[x_key][points_to_plot], arrays[y_key][points_to_plot]
@@ -479,7 +504,7 @@ class Sweep:
 
         plt.legend()
         x_label, y_label = f.replace_string(x_key, replace), f.replace_string(y_key, replace), 
-        fix_title = f.replace_string(' (' + ', '.join(f'{k}={v}' for k, v in fix) + ')', replace) if fix else ''
+        fix_title = f.replace_string(' (' + ', '.join(f'{k}{c}{v}' for k, c, v in constraints) + ')', replace) if constraints else ''
         plt.xlabel(x_label)
         plt.ylabel(y_label)
         plt.title(f"'{y_label}' vs '{x_label}'" + fix_title)
