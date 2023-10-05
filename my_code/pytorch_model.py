@@ -610,27 +610,55 @@ class Model(nn.Module):
         # get the embedding values between 0 and 2pi
         values_embedding = to_unique_angles(self.fc1.weight.data)
 
-        seq = []
+        #seq = []
+        #for i in optimized_x:
+        #    diff = values_embedding - i
+        #    while torch.any(diff>np.pi): # if the difference is bigger than pi, we need to change it to the other side
+        #        diff = torch.abs(2*np.pi*(diff>np.pi)-diff)
+
+        #    distance = torch.norm(diff, dim=1)
+        #    nearest = torch.argmin(distance) 
+        #    seq.append(nearest.item())
+
+        #score = self(torch.tensor(seq, dtype=torch.int)).item()
+        #seq = tuple(seq)
+
+        #print('Score: {:.4f}, sequence: {}'.format(score, seq), end='                    ')
+
+
+        #self.optimized_inputs.append((seq, score))
+
+
+        possible_inputs = []
         for i in optimized_x:
             diff = values_embedding - i
-            while torch.any(diff>np.pi): # if the difference is bigger than pi, we need to change it to the other side
+            while torch.any(diff>np.pi):
                 diff = torch.abs(2*np.pi*(diff>np.pi)-diff)
 
             distance = torch.norm(diff, dim=1)
-            nearest = torch.argmin(distance)
-            seq.append(nearest.item())
+            _, two_nearest = torch.topk(distance, k=2, largest=False)
+            possible_inputs.append(two_nearest.item())
 
-        score = self(torch.tensor(seq, dtype=torch.int)).item()
-        seq = tuple(seq)
+        # get all possible combinations
+        combinations = list(product(*possible_inputs))        
 
-        print('Score: {:.4f}, sequence: {}'.format(score, seq), end='                    ')
+        best_combination_i = 0
+        scores = []
+        for i, comb in enumerate(combinations):
+            score = self(torch.tensor(comb, dtype=torch.int)).item()
+            scores.append(score)
+            if score < scores[best_combination_i]:
+                best_combination_i = i
+
+            print('{}/{} combination, score: {:.4f}, best score: {:.4f}'.format(i+1, len(combinations), score, scores[best_combination_i]), end='\r')
+        print('{}, score: {:.4f}'.format(combinations[best_combination_i], scores[best_combination_i]), end='                    ')
 
 
-        self.optimized_inputs.append((seq, score))
+        self.optimized_inputs.append((combinations[best_combination_i], scores[best_combination_i]))
         self.input_optimization_results.add_plain_attributes(
             optimized_input = {
-                'sequence': seq,
-                'score': score,
+                'sequence': combinations[best_combination_i],
+                'score': scores[best_combination_i],
             }
         )
 
