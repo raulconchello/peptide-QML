@@ -565,7 +565,7 @@ class Model(nn.Module):
         last_score = model_without_embedding(input_to_optimize).item()        
         self.input_optimization_results.update(
             update_leader = 'score',
-            optimized_input = input_to_optimize.detach().numpy().tolist(),
+            optimized_input = input_to_optimize.detach().tolist(),
             n_iter = 0,
             score = last_score,
             time = 0,
@@ -583,7 +583,7 @@ class Model(nn.Module):
             # update results
             self.input_optimization_results.update(
                 update_leader = 'score',
-                optimized_input = input_to_optimize.detach().numpy().tolist(),
+                optimized_input = input_to_optimize.detach().tolist(),
                 n_iter = i+1,
                 score = score.item(),
                 time = t.time() - start_time,
@@ -637,7 +637,7 @@ class Model(nn.Module):
 
             distance = torch.norm(diff, dim=1)
             _, two_nearest = torch.topk(distance, k=2, largest=False)
-            possible_inputs.append(two_nearest.item())
+            possible_inputs.append(two_nearest.tolist())
 
         # get all possible combinations
         combinations = list(product(*possible_inputs))        
