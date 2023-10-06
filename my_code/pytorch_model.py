@@ -241,7 +241,7 @@ class Model(nn.Module):
                 prediction, target = self(self.data.x_test_ptc[i]), self.data.y_test_ptc[i]
 
                 print('\t Validation string, \t i: {}; \t prediction: {:.4f}, \t target: {:.4f}, \t loss: {:.4f}'.format(
-                    i, prediction.tolist(), target.tolist(), self.loss_function(prediction, target).tolist()))
+                    i, prediction.item(), target.item(), self.loss_function(prediction, target).item()))
 
             #time
             estimated_remaining_time = (num_epochs - epoch) * (t.time() - start_time) / epoch #remaining epochs * time per epoch
