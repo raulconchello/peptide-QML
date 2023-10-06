@@ -246,6 +246,14 @@ class Data:
         self.x_test_ptc = self.x_test[:int(len(self.x_test)*ptc)]
         self.y_test_ptc = self.y_test[:int(len(self.y_test)*ptc)]
 
+    def to(self, device):
+        self.x_train = self.x_train.to(device)
+        self.x_test = self.x_test.to(device)
+        self.y_train = self.y_train.to(device)
+        self.y_test = self.y_test.to(device)
+        self.x_test_ptc = self.x_test_ptc.to(device)
+        self.y_test_ptc = self.y_test_ptc.to(device)
+
     def get_loader(self, batch_size=32, **dataloader_options):
         return DataLoader(TensorDataset(self.x_train, self.y_train), batch_size=batch_size, **dataloader_options)
     

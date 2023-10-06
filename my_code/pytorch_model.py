@@ -75,6 +75,10 @@ class Model(nn.Module):
     def n_parameters(self):
         return sum([p.numel() for p in self.parameters()])
     
+    def set_device(self, device):
+        self.device_str = device
+        self.to(torch.device(device))
+    
     def set_quantum_layer(self, quantum_layer):
         self.quantum_layer = quantum_layer
 
@@ -124,7 +128,12 @@ class Model(nn.Module):
             raise ValueError("You need to give a Data object.")
         if not isinstance(data, c.Data):
             raise ValueError("The data object needs to be a Data object.")
+        
+        # data
         self.data = data
+        self.data.set_test_ptc(validation_pct)
+        if hasattr(self, 'device_str'):
+            self.data.to(self.device_str)
 
         # save metadata
         self.metadata = metadata
@@ -151,10 +160,7 @@ class Model(nn.Module):
 
         # loss function and optimizer
         self.loss_function = loss_function()
-        self.optimizer = optimizer(self.parameters(), **optimizer_options)
-
-        #data
-        self.data.set_test_ptc(validation_pct)
+        self.optimizer = optimizer(self.parameters(), **optimizer_options)        
 
         #save model info
         if save_model_info:
