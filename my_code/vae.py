@@ -2,8 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import helper_classes as c
+
 # Define the VAE model
-class VAE(nn.Module):
+class VAE(c.Module):
 
     # Define the Encoder
     class Encoder_RNN(nn.Module):
@@ -174,7 +176,6 @@ class VAE(nn.Module):
         self.encoder = VAE.ENCODER_map[encoder_type](**self.hyparams) 
         self.decoder = VAE.Decoder(**self.hyparams)
 
-
     @staticmethod
     def reparameterize(encoder_out, weight_eps=1e-2):
         z_mean, z_log_var = encoder_out
@@ -182,7 +183,8 @@ class VAE(nn.Module):
         return z_mean + torch.exp(0.5 * z_log_var) * epsilon * weight_eps
     
     @staticmethod
-    def loss_function(vae_out, x, reduction:str='sum', kl_weight:float=1.0):        
+    def loss_function(vae_out, batch, reduction:str='sum', kl_weight:float=1.0):   
+        x, y = batch     
         reconstructed, mu, logvar = vae_out
         reconstruction_loss = F.cross_entropy(reconstructed.view(-1, VAE.N_EMB), x.view(-1).long(), reduction=reduction)
         kl_divergence = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())  
@@ -197,26 +199,17 @@ class VAE(nn.Module):
         z = self.reparameterize((z_mean, z_log_var))
         return self.decoder(z), z_mean, z_log_var
     
-    def optimization_step(self, batch, optimizer, loss_fn_options:dict={}):
-        x, y = batch
-        optimizer.zero_grad()
-        loss = VAE.loss_function(self(x), x, **loss_fn_options)
-        loss.backward()
-        optimizer.step()
-        return loss.item()
-    
     def validation(self, batch, loss_fn_options:dict={}):
         x, y = batch
         with torch.no_grad():
             vae_out = self(x)
-            loss = VAE.loss_function(vae_out, x, **loss_fn_options)
+            loss = self.loss_function(vae_out, batch, **loss_fn_options)
 
-            x_pred = VAE.process_output(self.decoder(vae_out[1]))
+            x_pred = self.process_output(self.decoder(vae_out[1]))
             acc = (x_pred == x).float().mean()
         return loss.item(), acc.item()
     
-    def save(self, path:str):
-        torch.save(self, path)
+
 
     
     
