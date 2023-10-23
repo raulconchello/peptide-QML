@@ -136,7 +136,7 @@ class VAE(c.Module):
     ENCODER_map = {'RNN': Encoder_RNN, 'conv': Encoder_conv}
     RNN_map = {'LSTM': nn.LSTM, 'GRU': nn.GRU, 'RNN': nn.RNN}
 
-    one_hot_encode = lambda tensor: torch.zeros(*tensor.shape, VAE.N_EMB).long().to(tensor.device).scatter_(2, tensor.unsqueeze(2).long(), 1)
+    one_hot_encode = lambda tensor: torch.zeros(*tensor.shape, VAE.N_EMB).to(tensor.device).scatter_(2, tensor.unsqueeze(2).long(), 1)
     one_hot_decode = lambda tensor: torch.argmax(tensor, dim=-1).int()
 
     # Define the constructor
