@@ -312,7 +312,7 @@ class Module(torch.nn.Module):
         return loss.item()
     
     def save(self, path:str):        
-        copy_of_self = copy.deepcopy(self).device('cpu')
+        copy_of_self = copy.deepcopy(self).to('cpu')
         torch.save(copy_of_self, path)
         torch.save(self, path)
 
