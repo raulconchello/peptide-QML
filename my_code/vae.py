@@ -66,7 +66,7 @@ class VAE(c.Module):
                 self.convs.add_module(f'conv_{i}', nn.Conv1d(*conv_dim))
                 self.convs.add_module(f'act_{i}', activation_fn())
                 last_dim -= conv_dim[-1] - 1
-                out_dim = conv_dim[2]
+                out_dim = conv_dim[1]
 
             self.convs_T = nn.Sequential()
             last_T_dim = VAE.SQ_LEN if convs_T_dims else 0
@@ -76,7 +76,7 @@ class VAE(c.Module):
                 self.convs_T.add_module(f'conv_{i}', nn.Conv1d(*conv_dim))
                 self.convs_T.add_module(f'act_{i}', activation_fn())
                 last_T_dim -= conv_dim[-1] - 1
-                out_T_dim = conv_dim[2]
+                out_T_dim = conv_dim[1]
 
             dim_in_linear = last_dim * out_dim + last_T_dim * out_T_dim
             self.fc_post = nn.Sequential(nn.Linear(dim_in_linear, mid_dim), activation_fn()) if mid_dim else nn.Identity()
