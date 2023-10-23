@@ -313,7 +313,7 @@ class Optimizer:
     @staticmethod
     def print_optimizer_status(epoch, n_epochs, batch_idx, n_batches, loss, time_start):
         if batch_idx == None:
-            h, m, s, _, _, _ = Optimizer.time_left(time_start, n_epochs, n_batches, epoch, n_batches)
+            _, _, _, h, m, s = Optimizer.time_left(time_start, n_epochs, n_batches, epoch, n_batches)
             l_epoch, l_test, l_accuracy = loss['epoch'][-1], loss['test'][-1], loss['accuracy'][-1]                    
             print(f"Epoch {epoch+1}/{n_epochs}, \t loss={l_epoch:.4f}, \t loss test={l_test:.4f}, \t accuracy test={l_accuracy:.4f}, \t\t time left = {h}h {m}m {s}s, \t\t                                     ", end='\n')
         else:
