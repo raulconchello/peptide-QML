@@ -60,18 +60,18 @@ class VAE(c.Module):
             # layers
             self.convs = nn.Sequential()
             last_dim = VAE.N_EMB if convs_T_dims else 0
-            for conv_dim in convs_dims:
+            for i, conv_dim in enumerate(convs_dims):
                 conv_dim = [VAE.SQ_LEN if dim == 'in' else dim for dim in conv_dim]
-                self.convs.append(nn.Conv1d(*conv_dim))
-                self.convs.append(activation_fn())
+                self.convs.add_module(f'conv_{i}', nn.Conv1d(*conv_dim))
+                self.convs.add_module(f'act_{i}', activation_fn())
                 last_dim -= conv_dim[-1] - 1
 
             self.convs_T = nn.Sequential()
             last_T_dim = VAE.SQ_LEN if convs_T_dims else 0
-            for conv_dim in convs_T_dims:
+            for i, conv_dim in enumerate(convs_T_dims):
                 conv_dim = [VAE.N_EMB if dim == 'in' else dim for dim in conv_dim]
-                self.convs_T.append(nn.Conv1d(*conv_dim))
-                self.convs_T.append(activation_fn())
+                self.convs_T.add_module(f'conv_{i}', nn.Conv1d(*conv_dim))
+                self.convs_T.add_module(f'act_{i}', activation_fn())
                 last_T_dim -= conv_dim[-1] - 1
 
             dim_in_linear = last_dim * self.convs[-1].out_channels + last_T_dim * self.convs_T[-1].out_channels
