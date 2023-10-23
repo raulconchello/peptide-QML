@@ -1,5 +1,6 @@
 import uuid
 import time
+import copy
 import torch
 import datetime
 import numpy as np
@@ -288,6 +289,38 @@ class Data:
             initial_path=initial_path,
         )
     
+## MODULE CLASSES ##
+class Module(torch.nn.Module):
+
+    @staticmethod
+    def loss_function(model_out, batch, **loss_fn_options):
+        raise NotImplementedError("loss_function not implemented")
+
+    def optimization_step(self, batch, optimizer, loss_fn_options:dict={}):
+        x, y = batch
+        optimizer.zero_grad()
+        loss = self.loss_function(self(x), batch, **loss_fn_options)
+        loss.backward()
+        optimizer.step()
+        return loss.item()
+    
+    def validation(self, batch, loss_fn_options:dict={}):
+        x, y = batch
+        with torch.no_grad():
+            vae_out = self(x)
+            loss = self.loss_function(vae_out, batch, **loss_fn_options)
+        return loss.item()
+    
+    def save(self, path:str):        
+        copy_of_self = copy.deepcopy(self).device('cpu')
+        torch.save(copy_of_self, path)
+        torch.save(self, path)
+
+    @classmethod
+    def load(self, path:str):
+        return torch.load(path)
+
+    
 ## OPTIMIZER CLASSES ##
 class Optimizer:
 
@@ -311,11 +344,14 @@ class Optimizer:
         return epoch_hours, epoch_minutes, epoch_seconds, total_hours, total_minutes, total_seconds
 
     @staticmethod
-    def print_optimizer_status(epoch, n_epochs, batch_idx, n_batches, loss, time_start):
+    def print_optimizer_status(epoch, n_epochs, batch_idx, n_batches, loss, time_start, accuracy=False):
         if batch_idx == None:
             _, _, _, h, m, s = Optimizer.time_left(time_start, n_epochs, n_batches, epoch, n_batches)
-            l_epoch, l_test, l_accuracy = loss['epoch'][-1], loss['test'][-1], loss['accuracy'][-1]                    
-            print(f"Epoch {epoch+1}/{n_epochs}, \t loss={l_epoch:.4f}, \t loss test={l_test:.4f}, \t accuracy test={l_accuracy:.4f}, \t\t time left = {h}h {m}m {s}s, \t\t                                     ", end='\n')
+            l_epoch, l_test, l_accuracy = loss['epoch'][-1], loss['test'][-1], loss['accuracy'][-1] 
+            if accuracy:                   
+                print(f"Epoch {epoch+1}/{n_epochs}, \t loss={l_epoch:.4f}, \t loss test={l_test:.4f}, \t accuracy test={l_accuracy:.4f}, \t\t time left = {h}h {m}m {s}s, \t\t                                     ", end='\n')
+            else:
+                print(f"Epoch {epoch+1}/{n_epochs}, \t loss={l_epoch:.4f}, \t loss test={l_test:.4f}, \t\t time left = {h}h {m}m {s}s, \t\t                                                                        ", end='\n')
         else:
             h, m, s, th, tm, ts = Optimizer.time_left(time_start, n_epochs, n_batches, epoch, batch_idx+1)
             print(f'\t Epoch {epoch+1}/{n_epochs}, \t batch {batch_idx+1}/{n_batches}, \t loss={loss:.4f}, \t total time left = {th}h {tm}m {ts}s, \t epoch time left = {h}h {m}m {s}s                         ', end='\r')
@@ -367,11 +403,17 @@ class Optimizer:
             self.model.losses['epoch'].append(sum(self.model.losses['batch'][-n_batches:])/n_batches)
 
             # validation
+            accuracy_bool = False
             if validation:
                 self.model.eval()
-                loss, accuracy = self.model.validation((data.x_test_ptc, data.y_test_ptc), loss_fn_options)
-                self.model.losses['test'].append(loss*loss_test_constant)
-                self.model.losses['accuracy'].append(accuracy)
+                val = self.model.validation((data.x_test_ptc, data.y_test_ptc), loss_fn_options)
+                if len(val) == 2:
+                    accuracy_bool = True
+                    loss, accuracy = val                    
+                    self.model.losses['test'].append(loss*loss_test_constant)
+                    self.model.losses['accuracy'].append(accuracy)
+                else:
+                    self.model.losses['test'].append(val*loss_test_constant)
 
             # save
             if save:
@@ -387,7 +429,7 @@ class Optimizer:
                         break
 
             # print status
-            Optimizer.print_optimizer_status(epoch, n_epochs, None, n_batches, self.model.losses, time_start)
+            Optimizer.print_optimizer_status(epoch, n_epochs, None, n_batches, self.model.losses, time_start, accuracy=accuracy_bool)
 
     
 ## SWEEP CLASSES ##
