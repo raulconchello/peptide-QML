@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import helper_classes as c
+from . import helper_classes as c
 
 # Define the VAE model
 class VAE(c.Module):
