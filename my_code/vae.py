@@ -123,7 +123,7 @@ class VAE(nn.Module):
         def forward(self, x):
             batch_size = x.size(0)
             x = self.fc_pre(x)
-            x = x.unsqueeze(1).repeat(1, self.fc_post[-1].out_features, 1)
+            x = x.unsqueeze(1).repeat(1, self.fc_pre[-1].out_features, 1)
             x, _ = self.lstm(x)              
             x = x.contiguous().view(-1, x.size(-1))
             x = self.fc_post(x)
