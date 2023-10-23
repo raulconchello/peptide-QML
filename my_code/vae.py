@@ -171,6 +171,7 @@ class VAE(c.Module):
             activation_fn:nn.Module = nn.ReLU,
             convs_dims:list = None,
             convs_T_dims:list = None,
+            weight_eps:float = 1e-2,
             **kwargs
         ):
         
@@ -188,6 +189,7 @@ class VAE(c.Module):
             'activation_fn': activation_fn,
             'convs_dims': convs_dims,
             'convs_T_dims': convs_T_dims,
+            'weight_eps': weight_eps,
             'kwargs': kwargs,
         }
 
@@ -196,7 +198,7 @@ class VAE(c.Module):
         self.decoder = VAE.Decoder(**self.hyparams)
 
     @staticmethod
-    def reparameterize(encoder_out, weight_eps=1e-2):
+    def reparameterize(encoder_out, weight_eps=1e-1):
         z_mean, z_log_var = encoder_out
         epsilon = torch.randn_like(z_mean)
         return z_mean + torch.exp(0.5 * z_log_var) * epsilon * weight_eps
@@ -215,7 +217,7 @@ class VAE(c.Module):
     
     def forward(self, x):
         z_mean, z_log_var = self.encoder(x)
-        z = self.reparameterize((z_mean, z_log_var))
+        z = self.reparameterize((z_mean, z_log_var), self.hyparams['weight_eps'])
         return self.decoder(z), z_mean, z_log_var
     
     def validation(self, batch, loss_fn_options:dict={}):
