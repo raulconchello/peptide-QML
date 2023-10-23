@@ -304,6 +304,7 @@ class Module(torch.nn.Module):
         optimizer.step()
         return loss.item()
     
+    validation_return = ['loss']
     def validation(self, batch, loss_fn_options:dict={}):
         x, y = batch
         with torch.no_grad():
@@ -344,14 +345,12 @@ class Optimizer:
         return epoch_hours, epoch_minutes, epoch_seconds, total_hours, total_minutes, total_seconds
 
     @staticmethod
-    def print_optimizer_status(epoch, n_epochs, batch_idx, n_batches, loss, time_start, accuracy=False):
+    def print_optimizer_status(epoch, n_epochs, batch_idx, n_batches, loss, time_start):
         if batch_idx == None:
             _, _, _, h, m, s = Optimizer.time_left(time_start, n_epochs, n_batches, epoch, n_batches)
-            l_epoch, l_test, l_accuracy = loss['epoch'][-1], loss['test'][-1], loss['accuracy'][-1] 
-            if accuracy:                   
-                print(f"Epoch {epoch+1}/{n_epochs}, \t loss={l_epoch:.4f}, \t loss test={l_test:.4f}, \t accuracy test={l_accuracy:.4f}, \t\t time left = {h}h {m}m {s}s, \t\t                                     ", end='\n')
-            else:
-                print(f"Epoch {epoch+1}/{n_epochs}, \t loss={l_epoch:.4f}, \t loss test={l_test:.4f}, \t\t time left = {h}h {m}m {s}s, \t\t                                                                        ", end='\n')
+            losses = ''.join([f' \t {key}={value:.2f}, ' for key, value in loss.items()])              
+            print(f"Epoch {epoch+1}/{n_epochs}, "+losses+"\t\t time left = {h}h {m}m {s}s, \t\t                                     ", end='\n')
+
         else:
             h, m, s, th, tm, ts = Optimizer.time_left(time_start, n_epochs, n_batches, epoch, batch_idx+1)
             print(f'\t Epoch {epoch+1}/{n_epochs}, \t batch {batch_idx+1}/{n_batches}, \t loss={loss:.4f}, \t total time left = {th}h {tm}m {ts}s, \t epoch time left = {h}h {m}m {s}s                         ', end='\r')
@@ -382,9 +381,10 @@ class Optimizer:
         data.set_test_ptc(test_ptc)
         data_loader = data.get_loader(batch_size=batch_size, shuffle=True)
         loss_test_constant = 1 if 'reduction' in loss_fn_options and loss_fn_options['reduction'] == 'mean' else batch_size/len(data.x_test_ptc)
+        loss_test_constants = {k: loss_test_constant if 'loss' in k else 1 for k in self.model.validation_return}
 
         # dict to save losses
-        self.model.losses = { k: [] for k in ['batch', 'epoch', 'test', 'accuracy'] }
+        self.model.losses = { k: [] for k in ['batch', 'epoch'] + ['test_'+k for k in self.model.validation_return]}
 
         # optimization loop
         time_start, n_batches = time.time(), len(data_loader)
@@ -403,17 +403,11 @@ class Optimizer:
             self.model.losses['epoch'].append(sum(self.model.losses['batch'][-n_batches:])/n_batches)
 
             # validation
-            accuracy_bool = False
             if validation:
                 self.model.eval()
                 val = self.model.validation((data.x_test_ptc, data.y_test_ptc), loss_fn_options)
-                if len(val) == 2:
-                    accuracy_bool = True
-                    loss, accuracy = val                    
-                    self.model.losses['test'].append(loss*loss_test_constant)
-                    self.model.losses['accuracy'].append(accuracy)
-                else:
-                    self.model.losses['test'].append(val*loss_test_constant)
+                for k, v in zip(self.model.validation_return, val):
+                    self.model.losses['test_'+k].append(v*loss_test_constants[k])
 
             # save
             if save:
@@ -429,7 +423,7 @@ class Optimizer:
                         break
 
             # print status
-            Optimizer.print_optimizer_status(epoch, n_epochs, None, n_batches, self.model.losses, time_start, accuracy=accuracy_bool)
+            Optimizer.print_optimizer_status(epoch, n_epochs, None, n_batches, self.model.losses, time_start)
 
     
 ## SWEEP CLASSES ##

@@ -220,6 +220,7 @@ class VAE(c.Module):
         z = self.reparameterize((z_mean, z_log_var), self.hyparams['weight_eps'])
         return self.decoder(z), z_mean, z_log_var
     
+    validation_return = ['loss', 'acc']
     def validation(self, batch, loss_fn_options:dict={}):
         x, y = batch
         with torch.no_grad():
