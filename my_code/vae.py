@@ -118,7 +118,7 @@ class VAE(nn.Module):
             self.fc_pre = nn.Sequential(nn.Linear(latent_dim, mid_dim), activation_fn(), nn.Linear(mid_dim, latent_dim)) if mid_dim else nn.Sequential(nn.Linear(latent_dim, latent_dim))
             self.lstm = rnn_layer(latent_dim, **RNN_options, batch_first=True)
             self.fc_post = nn.Sequential(nn.Linear(lstm_out_dim, mid_dim), activation_fn(), nn.Linear(mid_dim, output_dim), nn.Softmax(dim=-1)) if mid_dim else \
-                           nn.Sequential(nn.Linear(lstm_out_dim, output_dim), nn.Softmax(dim=-1))
+                           nn.Sequential(nn.Linear(lstm_out_dim, VAE.N_EMB), nn.Softmax(dim=-1))
 
         def forward(self, x):
             batch_size = x.size(0)
