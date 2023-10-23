@@ -384,7 +384,7 @@ class Optimizer:
         loss_test_constants = {k: loss_test_constant if 'loss' in k else 1 for k in self.model.validation_return}
 
         # dict to save losses
-        self.model.losses = { k: [] for k in ['batch', 'epoch'] + ['test_'+k for k in self.model.validation_return]}
+        self.model.losses = { k: [] for k in ['loss_batch', 'loss_epoch'] + ['test_'+k for k in self.model.validation_return]}
 
         # optimization loop
         time_start, n_batches = time.time(), len(data_loader)
@@ -394,13 +394,13 @@ class Optimizer:
 
                 # optimization step
                 loss = self.model.optimization_step(batch, self.optimizer, loss_fn_options)
-                self.model.losses['batch'].append(loss)
+                self.model.losses['loss_batch'].append(loss)
 
                 # print status
                 Optimizer.print_optimizer_status(epoch, n_epochs, batch_idx, n_batches, loss, time_start)
 
             # epoch loss
-            self.model.losses['epoch'].append(sum(self.model.losses['batch'][-n_batches:])/n_batches)
+            self.model.losses['loss_epoch'].append(sum(self.model.losses['loss_batch'][-n_batches:])/n_batches)
 
             # validation
             if validation:
@@ -417,13 +417,14 @@ class Optimizer:
             if early_stopping_options:
                 patience, min_delta = early_stopping_options['patience'], early_stopping_options['min_delta']
                 if epoch > patience:
-                    loss_difference = sum(self.model.losses['batch'][-patience:])/patience - self.model.losses['batch'][-1]
+                    loss_difference = sum(self.model.losses['loss_batch'][-patience:])/patience - self.model.losses['loss_batch'][-1]
                     if loss_difference < min_delta:
                         print('Early stopping - epoch')
                         break
 
             # print status
-            Optimizer.print_optimizer_status(epoch, n_epochs, None, n_batches, self.model.losses, time_start)
+            losses_dict = {k: v for k, v in self.model.losses.items() if k != 'loss_batch'}
+            Optimizer.print_optimizer_status(epoch, n_epochs, None, n_batches, losses_dict, time_start)
 
     
 ## SWEEP CLASSES ##
