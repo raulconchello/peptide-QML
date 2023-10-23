@@ -59,7 +59,7 @@ class VAE(c.Module):
 
             # layers
             self.convs = nn.Sequential()
-            last_dim = VAE.N_EMB if convs_T_dims else 0
+            last_dim = VAE.N_EMB if convs_dims else 0
             out_dim = 0
             for i, conv_dim in enumerate(convs_dims):
                 conv_dim = [VAE.SQ_LEN if dim == 'in' else dim for dim in conv_dim]
@@ -84,10 +84,10 @@ class VAE(c.Module):
             self.fc_log_var = nn.Linear(mid_dim if mid_dim else dim_in_linear, latent_dim)
 
         def forward(self, x):
-            x = VAE.one_hot_encode(x)
-            x = self.convs(x)
+            one_hot = VAE.one_hot_encode(x)
+            x = self.convs(one_hot)
             x = x.view(x.size(0), -1)
-            x_T = self.convs_T(x.transpose(-2, -1))
+            x_T = self.convs_T(one_hot.transpose(-2, -1))
             x_T = x_T.view(x_T.size(0), -1)
 
             if len(self.convs)*len(self.convs_T) > 0:
