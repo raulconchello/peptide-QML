@@ -345,6 +345,7 @@ class Optimizer:
         # data
         data.set_test_ptc(test_ptc)
         data_loader = data.get_loader(batch_size=batch_size, shuffle=True)
+        loss_test_constant = 1 if 'reduction' in loss_fn_options and loss_fn_options['reduction'] == 'mean' else batch_size/len(data.x_test_ptc)
 
         # dict to save losses
         self.model.losses = { k: [] for k in ['batch', 'epoch', 'test', 'accuracy'] }
@@ -369,7 +370,7 @@ class Optimizer:
             if validation:
                 self.model.eval()
                 loss, accuracy = self.model.validation((data.x_test_ptc, data.y_test_ptc), loss_fn_options)
-                self.model.losses['test'].append(loss)
+                self.model.losses['test'].append(loss*loss_test_constant)
                 self.model.losses['accuracy'].append(accuracy)
 
             # save
