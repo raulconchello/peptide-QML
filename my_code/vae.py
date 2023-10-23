@@ -28,14 +28,21 @@ class VAE(c.Module):
             lstm_out_dim = RNN_options['hidden_size'] * 2 if bidirectional else RNN_options['hidden_size']
 
             # layers
-            self.embedding = nn.Embedding(VAE.N_EMB, emb_dim)
+            if emb_dim=='one_hot': 
+                emb_dim = VAE.N_EMB
+                self.embedding = nn.Identity()
+            else:
+                self.embedding = nn.Embedding(VAE.N_EMB, emb_dim)
             self.lstm = rnn_layer(emb_dim, **RNN_options, batch_first=True)
             self.fc_post = nn.Sequential(nn.Linear(lstm_out_dim, mid_dim), activation_fn()) if mid_dim else nn.Identity()
             self.fc_mean    = nn.Linear(mid_dim if mid_dim else lstm_out_dim, latent_dim)
             self.fc_log_var = nn.Linear(mid_dim if mid_dim else lstm_out_dim, latent_dim)
 
         def forward(self, x):
-            x = self.embedding(x)
+            if isinstance(self.embedding, nn.Identity):
+                x = VAE.one_hot_encode(x)
+            else:
+                x = self.embedding(x)
             x, _ = self.lstm(x)
             x = x[:, -1, :]  # Take the last time step output
             x = self.fc_post(x)
