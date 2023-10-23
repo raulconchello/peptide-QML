@@ -74,7 +74,7 @@ class VAE(c.Module):
                 self.convs_T.add_module(f'act_{i}', activation_fn())
                 last_T_dim -= conv_dim[-1] - 1
 
-            dim_in_linear = last_dim * self.convs[-1].out_channels + last_T_dim * self.convs_T[-1].out_channels
+            dim_in_linear = last_dim * self.convs[-2].out_channels + last_T_dim * self.convs_T[-2].out_channels
             self.fc_post = nn.Sequential(nn.Linear(dim_in_linear, mid_dim), activation_fn()) if mid_dim else nn.Identity()
             self.fc_mean    = nn.Linear(mid_dim if mid_dim else dim_in_linear, latent_dim)
             self.fc_log_var = nn.Linear(mid_dim if mid_dim else dim_in_linear, latent_dim)
