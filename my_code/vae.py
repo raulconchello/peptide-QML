@@ -154,6 +154,8 @@ class VAE(c.Module):
                 'dropout': 0.05,
             },
             activation_fn:nn.Module = nn.ReLU,
+            convs_dims:list = None,
+            convs_T_dims:list = None,
             **kwargs
         ):
         
@@ -169,6 +171,8 @@ class VAE(c.Module):
             'RNN_type': RNN_type,
             'RNN_options': RNN_options, 
             'activation_fn': activation_fn,
+            'convs_dims': convs_dims,
+            'convs_T_dims': convs_T_dims,
             'kwargs': kwargs,
         }
 
