@@ -85,15 +85,19 @@ class VAE(c.Module):
 
         def forward(self, x):
             one_hot = VAE.one_hot_encode(x)
-            x = self.convs(one_hot)
-            x = x.view(x.size(0), -1)
-            x_T = self.convs_T(one_hot.transpose(-2, -1))
-            x_T = x_T.view(x_T.size(0), -1)
+
+            if len(self.convs) > 0:
+                x = self.convs(one_hot)
+                x = x.view(x.size(0), -1)
+            if len(self.convs_T) > 0:
+                x_T = self.convs_T(one_hot.transpose(-2, -1))
+                x_T = x_T.view(x_T.size(0), -1)
 
             if len(self.convs)*len(self.convs_T) > 0:
                 x = torch.cat([x, x_T], dim=-1) 
             elif len(self.convs) == 0:
                 x = x_T
+            # else x = x
 
             x = self.fc_post(x.view(x.size(0), -1))
             z_mean = self.fc_mean(x)
