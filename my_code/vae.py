@@ -99,7 +99,6 @@ class VAE(nn.Module):
         def __init__(
                 self, 
                 latent_dim:int, 
-                output_dim:int, 
                 mid_dim:int,
                 RNN_type:str,
                 RNN_options:dict,
@@ -117,7 +116,7 @@ class VAE(nn.Module):
             # layers
             self.fc_pre = nn.Sequential(nn.Linear(latent_dim, mid_dim), activation_fn(), nn.Linear(mid_dim, latent_dim)) if mid_dim else nn.Sequential(nn.Linear(latent_dim, latent_dim))
             self.lstm = rnn_layer(latent_dim, **RNN_options, batch_first=True)
-            self.fc_post = nn.Sequential(nn.Linear(lstm_out_dim, mid_dim), activation_fn(), nn.Linear(mid_dim, output_dim), nn.Softmax(dim=-1)) if mid_dim else \
+            self.fc_post = nn.Sequential(nn.Linear(lstm_out_dim, mid_dim), activation_fn(), nn.Linear(mid_dim, VAE.N_EMB), nn.Softmax(dim=-1)) if mid_dim else \
                            nn.Sequential(nn.Linear(lstm_out_dim, VAE.N_EMB), nn.Softmax(dim=-1))
 
         def forward(self, x):
@@ -127,7 +126,7 @@ class VAE(nn.Module):
             x, _ = self.lstm(x)              
             x = x.contiguous().view(-1, x.size(-1))
             x = self.fc_post(x)
-            x = x.contiguous().view(batch_size, -1, x.size(-1))
+            x = x.contiguous().view(batch_size, -1, VAE.N_EMB)
             return x
 
     # Define the hyperparameters
@@ -144,7 +143,6 @@ class VAE(nn.Module):
             self, 
             emb_dim:int, 
             latent_dim:int, 
-            output_dim:int,  
             mid_dim:int = None,
             encoder_type:str = 'RNN',
             RNN_type:str = 'LSTM',
@@ -165,7 +163,6 @@ class VAE(nn.Module):
         self.hyparams = {
             'emb_dim': emb_dim, 
             'latent_dim': latent_dim, 
-            'output_dim': output_dim, 
             'mid_dim': mid_dim,
             'encoder_type': encoder_type,
             'RNN_type': RNN_type,
