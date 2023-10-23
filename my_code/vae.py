@@ -60,21 +60,25 @@ class VAE(c.Module):
             # layers
             self.convs = nn.Sequential()
             last_dim = VAE.N_EMB if convs_T_dims else 0
+            out_dim = 0
             for i, conv_dim in enumerate(convs_dims):
                 conv_dim = [VAE.SQ_LEN if dim == 'in' else dim for dim in conv_dim]
                 self.convs.add_module(f'conv_{i}', nn.Conv1d(*conv_dim))
                 self.convs.add_module(f'act_{i}', activation_fn())
                 last_dim -= conv_dim[-1] - 1
+                out_dim = conv_dim[2]
 
             self.convs_T = nn.Sequential()
             last_T_dim = VAE.SQ_LEN if convs_T_dims else 0
+            out_T_dim = 0
             for i, conv_dim in enumerate(convs_T_dims):
                 conv_dim = [VAE.N_EMB if dim == 'in' else dim for dim in conv_dim]
                 self.convs_T.add_module(f'conv_{i}', nn.Conv1d(*conv_dim))
                 self.convs_T.add_module(f'act_{i}', activation_fn())
                 last_T_dim -= conv_dim[-1] - 1
+                out_T_dim = conv_dim[2]
 
-            dim_in_linear = last_dim * self.convs[-2].out_channels + last_T_dim * self.convs_T[-2].out_channels
+            dim_in_linear = last_dim * out_dim + last_T_dim * out_T_dim
             self.fc_post = nn.Sequential(nn.Linear(dim_in_linear, mid_dim), activation_fn()) if mid_dim else nn.Identity()
             self.fc_mean    = nn.Linear(mid_dim if mid_dim else dim_in_linear, latent_dim)
             self.fc_log_var = nn.Linear(mid_dim if mid_dim else dim_in_linear, latent_dim)
