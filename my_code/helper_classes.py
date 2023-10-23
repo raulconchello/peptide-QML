@@ -251,8 +251,9 @@ class Data:
         self.x_test = self.x_test.to(device)
         self.y_train = self.y_train.to(device)
         self.y_test = self.y_test.to(device)
-        self.x_test_ptc = self.x_test_ptc.to(device)
-        self.y_test_ptc = self.y_test_ptc.to(device)
+        if hasattr(self, 'x_test_ptc'):
+            self.x_test_ptc = self.x_test_ptc.to(device)
+            self.y_test_ptc = self.y_test_ptc.to(device)
         return self
 
     def get_loader(self, batch_size=32, **dataloader_options):
