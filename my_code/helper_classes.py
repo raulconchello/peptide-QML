@@ -253,6 +253,7 @@ class Data:
         self.y_test = self.y_test.to(device)
         self.x_test_ptc = self.x_test_ptc.to(device)
         self.y_test_ptc = self.y_test_ptc.to(device)
+        return self
 
     def get_loader(self, batch_size=32, **dataloader_options):
         return DataLoader(TensorDataset(self.x_train, self.y_train), batch_size=batch_size, **dataloader_options)
@@ -285,6 +286,107 @@ class Data:
             folder='Data',
             initial_path=initial_path,
         )
+    
+## OPTIMIZER CLASSES ##
+class Optimizer:
+
+    def __init__(self, model, optimizer_class, optimizer_options:dict):
+        self.model = model
+        self.optimizer = optimizer_class(model.parameters(), **optimizer_options)
+
+    @staticmethod
+    def time_left(time_start, n_epochs_total, n_batches_total, n_epochs_done, current_batch):
+        time_left = (time.time() - time_start) * (n_epochs_total*n_batches_total / (n_epochs_done*n_batches_total + current_batch) - 1)
+        total_hours = int(time_left // 3600)
+        total_minutes = int((time_left - total_hours * 3600) // 60)
+        total_seconds = int(time_left - total_hours * 3600 - total_minutes * 60)
+
+        # remaining time for the current epoch
+        time_left_epoch = (time.time() - time_start) / (n_epochs_done*n_batches_total + current_batch) * (n_batches_total - current_batch)
+        epoch_hours = int(time_left_epoch // 3600)
+        epoch_minutes = int((time_left_epoch - epoch_hours * 3600) // 60)
+        epoch_seconds = int(time_left_epoch - epoch_hours * 3600 - epoch_minutes * 60)
+
+        return epoch_hours, epoch_minutes, epoch_seconds, total_hours, total_minutes, total_seconds
+
+    @staticmethod
+    def print_optimizer_status(epoch, n_epochs, batch_idx, n_batches, loss, time_start):
+        if batch_idx == None:
+            h, m, s, _, _, _ = Optimizer.time_left(time_start, n_epochs, n_batches, epoch, n_batches)
+            l_epoch, l_test, l_accuracy = loss['epoch'][-1], loss['test'][-1], loss['accuracy'][-1]                    
+            print(f"Epoch {epoch+1}/{n_epochs}, \t loss={l_epoch:.4f}, \t loss test={l_test:.4f}, \t accuracy test={l_accuracy:.4f}, \t\t time left = {h}h {m}m {s}s, \t\t                                     ", end='\n')
+        else:
+            h, m, s, th, tm, ts = Optimizer.time_left(time_start, n_epochs, n_batches, epoch, batch_idx+1)
+            print(f'\t Epoch {epoch+1}/{n_epochs}, \t batch {batch_idx+1}/{n_batches}, \t loss={loss:.4f}, \t total time left = {th}h {tm}m {ts}s, \t epoch time left = {h}h {m}m {s}s                         ', end='\r')
+
+    def optimize_parameters(
+            self, 
+            data:Data, 
+            n_epochs, 
+            batch_size, 
+            validation=True, 
+            save=True,
+            save_path=None,
+            test_ptc=0.1, 
+            loss_fn_options={},
+            early_stopping_options={
+                'patience': 10,
+                'min_delta': 0.001,
+            },
+        ):
+
+        # checks
+        if not isinstance(data, Data):
+            raise ValueError("data must be an object of class Data")
+        if save and save_path is None:
+            raise ValueError("save_path must be specified if save=True")
+
+        # data
+        data.set_test_ptc(test_ptc)
+        data_loader = data.get_loader(batch_size=batch_size, shuffle=True)
+
+        # dict to save losses
+        self.model.losses = { k: [] for k in ['batch', 'epoch', 'test', 'accuracy'] }
+
+        # optimization loop
+        time_start, n_batches = time.time(), len(data_loader)
+        for epoch in range(n_epochs):
+            self.model.train()
+            for batch_idx, batch in enumerate(data_loader):
+
+                # optimization step
+                loss = self.model.optimization_step(batch, self.optimizer, loss_fn_options)
+                self.model.losses['batch'].append(loss)
+
+                # print status
+                Optimizer.print_optimizer_status(epoch, n_epochs, batch_idx, n_batches, loss, time_start)
+
+            # epoch loss
+            self.model.losses['epoch'].append(sum(self.model.losses['batch'][-n_batches:])/n_batches)
+
+            # validation
+            if validation:
+                self.model.eval()
+                loss, accuracy = self.model.validation((data.x_test_ptc, data.y_test_ptc), loss_fn_options)
+                self.model.losses['test'].append(loss)
+                self.model.losses['accuracy'].append(accuracy)
+
+            # save
+            if save:
+                self.model.save(save_path)
+
+            # early stopping
+            if early_stopping_options:
+                patience, min_delta = early_stopping_options['patience'], early_stopping_options['min_delta']
+                if epoch > patience:
+                    loss_difference = sum(self.model.losses['batch'][-patience:])/patience - self.model.losses['batch'][-1]
+                    if loss_difference < min_delta:
+                        print('Early stopping - epoch')
+                        break
+
+            # print status
+            Optimizer.print_optimizer_status(epoch, n_epochs, None, n_batches, loss, time_start)
+
     
 ## SWEEP CLASSES ##
 
