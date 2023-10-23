@@ -349,7 +349,7 @@ class Optimizer:
         if batch_idx == None:
             _, _, _, h, m, s = Optimizer.time_left(time_start, n_epochs, n_batches, epoch, n_batches)
             losses = ''.join([f' \t {key}={value[-1]:.4f}, ' for key, value in loss.items()])              
-            print(f"Epoch {epoch+1}/{n_epochs}, "+losses+"\t\t time left = {h}h {m}m {s}s, \t\t                                     ", end='\n')
+            print(f"Epoch {epoch+1}/{n_epochs}, "+losses+f"\t\t time left = {h}h {m}m {s}s, \t\t                                     ", end='\n')
 
         else:
             h, m, s, th, tm, ts = Optimizer.time_left(time_start, n_epochs, n_batches, epoch, batch_idx+1)
