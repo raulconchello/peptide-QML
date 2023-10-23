@@ -126,9 +126,8 @@ class VAE(nn.Module):
             x = self.fc_pre(x)
             x = x.unsqueeze(1).repeat(1, self.output_dim, 1)
             x, _ = self.lstm(x)              
-            x = x.contiguous().view(-1, x.size(-1))
+            x = x.contiguous().view(batch_size, -1, x.size(-1))
             x = self.fc_post(x)
-            x = x.contiguous().view(batch_size, -1, VAE.N_EMB)
             return x
 
     # Define the hyperparameters
