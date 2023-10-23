@@ -386,7 +386,7 @@ class Optimizer:
                         break
 
             # print status
-            Optimizer.print_optimizer_status(epoch, n_epochs, None, n_batches, loss, time_start)
+            Optimizer.print_optimizer_status(epoch, n_epochs, None, n_batches, self.model.losses, time_start)
 
     
 ## SWEEP CLASSES ##
