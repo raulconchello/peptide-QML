@@ -99,7 +99,6 @@ class VAE(nn.Module):
         def __init__(
                 self, 
                 latent_dim:int, 
-                output_dim:int, 
                 mid_dim:int,
                 RNN_type:str,
                 RNN_options:dict,
@@ -110,7 +109,6 @@ class VAE(nn.Module):
             del kwargs
 
             # Define useful variables
-            self.output_dim = output_dim
             rnn_layer = VAE.RNN_map[RNN_type]
             bidirectional = RNN_options['bidirectional'] if 'bidirectional' in RNN_options else False
             lstm_out_dim = RNN_options['hidden_size'] * 2 if bidirectional else RNN_options['hidden_size']
@@ -124,7 +122,7 @@ class VAE(nn.Module):
         def forward(self, x):
             batch_size = x.size(0)
             x = self.fc_pre(x)
-            x = x.unsqueeze(1).repeat(1, self.output_dim, 1)
+            x = x.unsqueeze(1).repeat(1, VAE.SQ_LEN, 1)
             x, _ = self.lstm(x)              
             x = x.contiguous().view(batch_size, -1, x.size(-1))
             x = self.fc_post(x)
@@ -144,7 +142,6 @@ class VAE(nn.Module):
             self, 
             emb_dim:int, 
             latent_dim:int, 
-            output_dim:int,  
             mid_dim:int = None,
             encoder_type:str = 'RNN',
             RNN_type:str = 'LSTM',
@@ -165,7 +162,6 @@ class VAE(nn.Module):
         self.hyparams = {
             'emb_dim': emb_dim, 
             'latent_dim': latent_dim, 
-            'output_dim': output_dim, 
             'mid_dim': mid_dim,
             'encoder_type': encoder_type,
             'RNN_type': RNN_type,
