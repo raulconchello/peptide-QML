@@ -310,7 +310,7 @@ class Module(torch.nn.Module):
         with torch.no_grad():
             vae_out = self(x)
             loss = self.loss_function(vae_out, batch, **loss_fn_options)
-        return loss.item()
+        return loss.item(),
     
     def save(self, path:str):        
         copy_of_self = copy.deepcopy(self).to('cpu')
