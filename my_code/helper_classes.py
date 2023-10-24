@@ -369,6 +369,7 @@ class Optimizer:
                 'patience': 10,
                 'min_delta': 0.001,
             },
+            data_x_transform=None,
         ):
 
         # checks
@@ -391,6 +392,10 @@ class Optimizer:
         for epoch in range(n_epochs):
             self.model.train()
             for batch_idx, batch in enumerate(data_loader):
+
+                # transform data if needed
+                if data_x_transform is not None:
+                    batch = (data_x_transform(batch[0]), batch[1])
 
                 # optimization step
                 loss = self.model.optimization_step(batch, self.optimizer, loss_fn_options)
