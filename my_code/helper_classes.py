@@ -403,6 +403,7 @@ class Optimizer:
 
                 # print status
                 Optimizer.print_optimizer_status(epoch, n_epochs, batch_idx, n_batches, loss, time_start)
+                break
 
             # epoch loss
             self.model.losses['loss_epoch'].append(sum(self.model.losses['loss_batch'][-n_batches:])/n_batches)
@@ -410,7 +411,7 @@ class Optimizer:
             # validation
             if validation:
                 self.model.eval()
-                val = self.model.validation((data.x_test_ptc, data.y_test_ptc), loss_fn_options)
+                val = self.model.validation((data_x_transform(data.x_test_ptc), data.y_test_ptc), loss_fn_options)
                 for k, v in zip(self.model.validation_return, val):
                     self.model.losses['test_'+k].append(v*loss_test_constants[k])
 
