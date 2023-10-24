@@ -403,7 +403,6 @@ class Optimizer:
 
                 # print status
                 Optimizer.print_optimizer_status(epoch, n_epochs, batch_idx, n_batches, loss, time_start)
-                break
 
             # epoch loss
             self.model.losses['loss_epoch'].append(sum(self.model.losses['loss_batch'][-n_batches:])/n_batches)
