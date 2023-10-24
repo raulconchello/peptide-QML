@@ -410,7 +410,8 @@ class Optimizer:
             # validation
             if validation:
                 self.model.eval()
-                val = self.model.validation((data_x_transform(data.x_test_ptc), data.y_test_ptc), loss_fn_options)
+                batch = data.x_test_ptc, data.y_test_ptc if data_x_transform is None else data_x_transform(data.x_test_ptc), data.y_test_ptc
+                val = self.model.validation(batch, loss_fn_options)
                 for k, v in zip(self.model.validation_return, val):
                     self.model.losses['test_'+k].append(v*loss_test_constants[k])
 
